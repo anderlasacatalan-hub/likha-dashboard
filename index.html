@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Likha Homes | Revenue 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #263548;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --indigo: #818cf8;
+      --slate: #64748b;
+    }
+    html { font-size: 15px; scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    .page-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .header-brand { display: flex; align-items: center; gap: 0.75rem; }
+    .header-logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #6366f1, #22c55e);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700; color: white;
+    }
+    .header-title { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
+    .header-subtitle { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+    .update-badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      padding: 0.25rem 0.875rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    .section { margin-bottom: 2.5rem; }
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── PORTFOLIO SUMMARY ──────────────────────────────── */
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.25rem 1rem;
+    }
+    .stat-value {
+      font-size: 1.625rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .stat-value.green { color: var(--green); }
+    .stat-value.amber { color: var(--amber); }
+    .stat-value.red { color: var(--red); }
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+    .stat-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    /* ── PROPERTY CARDS ─────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .property-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.125rem;
+      border-left: 3px solid var(--border);
+      transition: border-color 0.2s;
+    }
+    .property-card.green { border-left-color: var(--green); }
+    .property-card.amber { border-left-color: var(--amber); }
+    .property-card.red   { border-left-color: var(--red); }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.875rem; }
+    .card-name { font-size: 0.875rem; font-weight: 600; line-height: 1.3; }
+    .card-location { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
+    .card-pct-box { text-align: right; }
+    .card-pct { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; }
+    .card-pct.green { color: var(--green); }
+    .card-pct.amber { color: var(--amber); }
+    .card-pct.red   { color: var(--red); }
+    .card-pct-label { font-size: 0.62rem; color: var(--muted); }
+    .progress-bar { background: var(--border); border-radius: 9999px; height: 5px; margin-bottom: 0.75rem; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 9999px; }
+    .progress-fill.green { background: var(--green); }
+    .progress-fill.amber { background: var(--amber); }
+    .progress-fill.red   { background: var(--red); }
+    .card-nums { display: flex; justify-content: space-between; font-size: 0.78rem; }
+    .card-confirmed { font-weight: 600; }
+    .card-target { color: var(--muted); }
+    .card-note { font-size: 0.68rem; color: var(--muted); margin-top: 0.625rem; line-height: 1.45; padding-top: 0.625rem; border-top: 1px solid var(--border); }
+
+    /* ── CHARTS ─────────────────────────────────────────── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.125rem;
+    }
+    .chart-card-header { margin-bottom: 0.875rem; }
+    .chart-title { font-size: 0.82rem; font-weight: 600; }
+    .chart-subtitle { font-size: 0.68rem; color: var(--muted); margin-top: 0.125rem; }
+    .chart-wrapper { position: relative; height: 190px; }
+    .chart-legend { display: flex; gap: 1rem; margin-top: 0.625rem; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.67rem; color: var(--muted); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── ANNUAL TABLE ────────────────────────────────────── */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      min-width: 560px;
+    }
+    thead tr { border-bottom: 2px solid var(--border); }
+    th {
+      text-align: left;
+      padding: 0.625rem 1rem;
+      font-size: 0.67rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    th.r { text-align: right; }
+    td { padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    td.r { text-align: right; font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: none; }
+    .td-name { font-weight: 600; }
+    .td-loc { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+    .pct-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .pct-pill.green { background: rgba(34,197,94,.15); color: var(--green); }
+    .pct-pill.amber { background: rgba(245,158,11,.15); color: var(--amber); }
+    .pct-pill.red   { background: rgba(239,68,68,.15);  color: var(--red); }
+    .pct-pill.slate { background: rgba(100,116,139,.15); color: var(--slate); }
+    .total-row td { font-weight: 700; background: rgba(59,130,246,.05); border-top: 2px solid var(--border); border-bottom: none; }
+
+    /* ── NOTES ──────────────────────────────────────────── */
+    .notes-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.125rem 1.25rem;
+    }
+    .notes-list { list-style: none; }
+    .notes-list li {
+      font-size: 0.76rem;
+      color: var(--muted);
+      padding: 0.25rem 0 0.25rem 1.125rem;
+      position: relative;
+      line-height: 1.5;
+    }
+    .notes-list li::before { content: '·'; position: absolute; left: 0; color: var(--blue); font-size: 1rem; line-height: 1.35; }
+
+    /* ── FOOTER ─────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      padding: 1.5rem 1rem;
+      border-top: 1px solid var(--border);
+      margin-top: 1rem;
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .container { padding: 1.25rem 1rem 2.5rem; }
+      .portfolio-grid { grid-template-columns: 1fr 1fr; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .stat-value { font-size: 1.35rem; }
+    }
+    @media (max-width: 360px) {
+      .portfolio-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="header-logo">L</div>
+      <div>
+        <div class="header-title">Likha Homes</div>
+        <div class="header-subtitle">Revenue Dashboard · 2026</div>
+      </div>
+    </div>
+    <div class="update-badge">Actualizado: 27 jun 2026</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- PORTFOLIO SUMMARY -->
+  <section class="section">
+    <p class="section-label">Resumen Portfolio</p>
+    <div class="portfolio-grid">
+      <div class="stat-card">
+        <div class="stat-value">€51.279</div>
+        <div class="stat-label">Revenue Confirmado</div>
+        <div class="stat-sub">Histórico + reservas futuras confirmadas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">€81.000</div>
+        <div class="stat-label">Target Anual 2026</div>
+        <div class="stat-sub">5 propiedades · escenario realista</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value amber">63,3%</div>
+        <div class="stat-label">% del Target Confirmado</div>
+        <div class="stat-sub">50% del año transcurrido</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">€29.721</div>
+        <div class="stat-label">Gap Restante</div>
+        <div class="stat-sub">Sep–Dic aún sin confirmar</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROPERTY CARDS -->
+  <section class="section">
+    <p class="section-label">Por Propiedad</p>
+    <div class="cards-grid" id="cards-container"></div>
+  </section>
+
+  <!-- MONTHLY H2 CHARTS -->
+  <section class="section">
+    <p class="section-label">Revenue Mensual Jul–Dic 2026</p>
+    <div class="charts-grid" id="charts-container"></div>
+  </section>
+
+  <!-- ANNUAL TABLE -->
+  <section class="section">
+    <p class="section-label">Tabla Anual 2026</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Propiedad</th>
+            <th class="r">Target 2026</th>
+            <th class="r">Confirmado</th>
+            <th class="r">Gap</th>
+            <th class="r">% Completado</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+        <tfoot id="table-foot"></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- NOTES -->
+  <section class="section">
+    <p class="section-label">Notas y Alertas</p>
+    <div class="notes-box">
+      <ul class="notes-list">
+        <li><strong>Datos:</strong> extraídos del knowledge base Likha Homes · 27 junio 2026. Revenue "confirmado" incluye check-ins históricos (ene–jun) y reservas futuras ya confirmadas (jul–ago).</li>
+        <li><strong>Alhama (Apt Noelia):</strong> anomalía ene–mar 2026 irrecuperable (0 revenue, causa pendiente de confirmar). H2 muy sólido: €5.872 confirmados en jul–ago. Target anual reducido de €17.000 a €14.000.</li>
+        <li><strong>Carlos (Villa Torrevieja):</strong> Booking.com inactivo — dirección pendiente de verificación en extranet. Sin activarlo, riesgo de –€1.500–2.000 en H2.</li>
+        <li><strong>Jon Wiggen:</strong> año parcial (launch 15 jun 2026). H1 = €0. Primera reserva: Emily Cuthbert Ago6–20 (€2.923, 14 noches). Julio sin reservas a 27 jun.</li>
+        <li><strong>Cantabria:</strong> revenue jul–ago calculado desde forward calendar (Juana, Rafael, Andreas, Annika, Oihan, Claudia, Fuensanta). Jul €3.934 y Ago €4.065 confirmados — ambos superan o alcanzan el target.</li>
+        <li><strong>Stijn:</strong> H2 sin reservas confirmadas a 27 jun. Revenue H1 = €8.982 (+17,9% vs target H1). Verano depende de conversión de overrides activos en PriceLabs.</li>
+        <li><strong>Comisión Likha estimada anual:</strong> €11.920 (realista) — Stijn 20%, resto 15% sobre neto plataforma.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Likha Homes Revenue System · Claude Code · Datos extraídos del KB el 27 junio 2026
+</footer>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const H2 = ['Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+const PROPERTIES = [
+  {
+    id: 'stijn',
+    name: 'House – Stijn',
+    location: 'San Miguel de Salinas',
+    target_annual: 18000,
+    h1_real: 8982,
+    h1_target: 7620,
+    h2_targets:   [2520, 2990, 1210, 1150,  850, 1660],
+    h2_confirmed: [null, null, null, null, null, null],
+    note: 'H1 +17,9% vs target. H2 sin reservas confirmadas a 27 jun — overrides PriceLabs activos Jul–Ago. Primera temporada alta completa.'
+  },
+  {
+    id: 'carlos',
+    name: 'Villa Carlos',
+    location: 'Torrevieja',
+    target_annual: 26000,
+    h1_real: 11036,
+    h1_target: 11350,
+    h2_targets:   [3500, 4000, 1800, 2100, 1550, 1700],
+    h2_confirmed: [2401, 3340, null, null, null, null],
+    note: 'Jul €2.401 + Ago €3.340 confirmados (5 reservas Airbnb). Booking.com inactivo — riesgo anual si no activa en jul.'
+  },
+  {
+    id: 'alhama',
+    name: 'Apt Noelia – Alhama',
+    location: 'Alhama de Murcia',
+    target_annual: 14000,
+    h1_real: 3534,
+    h1_target: 7450,
+    h2_targets:   [2700, 2400, 1500, 1200, 1050,  700],
+    h2_confirmed: [2414, 3458, null, null, null, null],
+    note: 'Anomalía ene–mar irrecuperable (€0). Jul €2.414 + Ago €3.458 confirmados — supera ambos targets. Booking.com rate plan eliminado jun16.'
+  },
+  {
+    id: 'cantabria',
+    name: 'Apt Cantabria – Noelia',
+    location: 'San Vicente de la Barquera',
+    target_annual: 15000,
+    h1_real: 5192,
+    h1_target: 4400,
+    h2_targets:   [2500, 4000, 1200,  900,  600,  800],
+    h2_confirmed: [3934, 4065, null, null, null, null],
+    note: 'Verano prácticamente lleno. Jul €3.934 (+57% vs target) y Ago €4.065 (≈ target) confirmados. Bloqueo propietario Ago20–26.'
+  },
+  {
+    id: 'jon',
+    name: 'Apt Jon Wiggen',
+    location: 'Mar Menor Golf Resort',
+    target_annual: 8000,
+    h1_real: 0,
+    h1_target: 0,
+    h2_targets:   [1200, 3500,  900, 1100,  600,  900],
+    h2_confirmed: [   0, 2923, null, null, null, null],
+    note: 'Launch 15 jun 2026. Ago €2.923 confirmados (Emily Cuthbert, 14n). Julio sin reservas aún. 0 reviews — activar Booking.com/VRBO tras 3 reviews.'
+  }
+];
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const fmt = (n) => '€' + Math.round(n).toLocaleString('es-ES');
+
+function totalConfirmed(p) {
+  const h2 = p.h2_confirmed.reduce((s, v) => s + (v || 0), 0);
+  return p.h1_real + h2;
+}
+
+function statusClass(confirmed, target) {
+  if (target === 0) return 'slate';
+  const r = confirmed / target;
+  if (r >= 0.6) return 'green';
+  if (r >= 0.4) return 'amber';
+  return 'red';
+}
+
+// ── PROPERTY CARDS ───────────────────────────────────────────────────────────
+function buildCards() {
+  const container = document.getElementById('cards-container');
+  PROPERTIES.forEach(p => {
+    const confirmed = totalConfirmed(p);
+    const pct = p.target_annual > 0 ? Math.round(confirmed / p.target_annual * 100) : 0;
+    const cls = statusClass(confirmed, p.target_annual);
+    const barWidth = Math.min(100, pct);
+
+    container.innerHTML += `
+      <div class="property-card ${cls}">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${p.name}</div>
+            <div class="card-location">${p.location}</div>
+          </div>
+          <div class="card-pct-box">
+            <div class="card-pct ${cls}">${pct}%</div>
+            <div class="card-pct-label">del target</div>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill ${cls}" style="width:${barWidth}%"></div>
+        </div>
+        <div class="card-nums">
+          <span class="card-confirmed">${fmt(confirmed)}</span>
+          <span class="card-target">de ${fmt(p.target_annual)}</span>
+        </div>
+        <div class="card-note">${p.note}</div>
+      </div>`;
+  });
+}
+
+// ── CHARTS ───────────────────────────────────────────────────────────────────
+const GREEN_A  = 'rgba(34,197,94,0.75)';
+const AMBER_A  = 'rgba(245,158,11,0.75)';
+const RED_A    = 'rgba(239,68,68,0.75)';
+const INDIGO_A = 'rgba(129,140,248,0.85)';
+const ZERO_A   = 'rgba(100,116,139,0.35)';
+const TARGET_A = 'rgba(59,130,246,0.18)';
+const TARGET_B = 'rgba(59,130,246,0.55)';
+
+function confirmedBarColor(real, target) {
+  if (real === null) return 'transparent';
+  if (real === 0 && target === 0) return ZERO_A;
+  if (real === 0) return RED_A;
+  const r = real / target;
+  if (r >= 0.9) return GREEN_A;
+  if (r >= 0.75) return AMBER_A;
+  return RED_A;
+}
+
+// For Jul/Aug forward confirmed (booked but future), use indigo
+function confirmedBarColorH2(real, target, monthIdx) {
+  if (real === null) return 'transparent';
+  if (monthIdx >= 2) return 'transparent'; // Sep–Dec: no confirmed data
+  if (real === 0 && monthIdx < 2) return RED_A;
+  // Jul and Aug: forward confirmed bookings → indigo
+  return INDIGO_A;
+}
+
+function buildCharts() {
+  const container = document.getElementById('charts-container');
+  PROPERTIES.forEach(p => {
+    const divId = `chart-${p.id}`;
+    container.innerHTML += `
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-title">${p.name}</div>
+          <div class="chart-subtitle">${p.location} · Revenue Jul–Dic 2026 vs Target</div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="${divId}"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:${TARGET_B}"></div>Target</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${INDIGO_A}"></div>Confirmado</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(100,116,139,0.5)"></div>Sin datos</div>
+        </div>
+      </div>`;
+  });
+
+  // Render charts after DOM is updated
+  setTimeout(() => {
+    PROPERTIES.forEach(p => {
+      const ctx = document.getElementById(`chart-${p.id}`);
+      if (!ctx) return;
+
+      const confirmedData = p.h2_confirmed.map((v, i) => (v === null ? 0 : v));
+      const confirmedColors = p.h2_confirmed.map((v, i) => confirmedBarColorH2(v, p.h2_targets[i], i));
+      const confirmedBorders = confirmedColors.map(c => c === 'transparent' ? 'transparent' : c.replace('0.85', '1').replace('0.75', '1'));
+
+      // For months with null, show a placeholder bar at small height with muted color
+      const placeholderData = p.h2_confirmed.map((v, i) => {
+        if (v !== null) return 0;
+        return p.h2_targets[i] * 0.04; // tiny placeholder bar to show "no data"
+      });
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: H2,
+          datasets: [
+            {
+              label: 'Target',
+              data: p.h2_targets,
+              backgroundColor: TARGET_A,
+              borderColor: TARGET_B,
+              borderWidth: 1,
+              borderRadius: 4,
+              order: 2
+            },
+            {
+              label: 'Confirmado',
+              data: confirmedData,
+              backgroundColor: confirmedColors,
+              borderColor: confirmedBorders,
+              borderWidth: 1,
+              borderRadius: 4,
+              order: 1
+            },
+            {
+              label: 'Sin datos',
+              data: placeholderData,
+              backgroundColor: 'rgba(100,116,139,0.25)',
+              borderColor: 'rgba(100,116,139,0.4)',
+              borderWidth: 1,
+              borderRadius: 4,
+              order: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              borderColor: '#334155',
+              borderWidth: 1,
+              titleColor: '#f1f5f9',
+              bodyColor: '#94a3b8',
+              padding: 10,
+              callbacks: {
+                label: (ctx) => {
+                  if (ctx.dataset.label === 'Sin datos') return null;
+                  const val = ctx.raw;
+                  if (val === 0 && ctx.dataset.label === 'Confirmado') return ' Confirmado: sin reservas';
+                  return ` ${ctx.dataset.label}: €${val.toLocaleString('es-ES')}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(51,65,85,0.5)' },
+              ticks: { color: '#94a3b8', font: { size: 11 } }
+            },
+            y: {
+              grid: { color: 'rgba(51,65,85,0.5)' },
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 11 },
+                callback: (v) => v >= 1000 ? '€' + (v/1000).toFixed(0) + 'k' : '€' + v
+              },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    });
+  }, 0);
+}
+
+// ── ANNUAL TABLE ─────────────────────────────────────────────────────────────
+function buildTable() {
+  const tbody = document.getElementById('table-body');
+  const tfoot = document.getElementById('table-foot');
+
+  let totalTarget = 0, totalConfirmedAll = 0;
+
+  PROPERTIES.forEach(p => {
+    const conf = totalConfirmed(p);
+    const gap = p.target_annual - conf;
+    const pct = p.target_annual > 0 ? Math.round(conf / p.target_annual * 100) : null;
+    const cls = statusClass(conf, p.target_annual);
+    const pctLabel = pct !== null ? `${pct}%` : 'N/A';
+
+    totalTarget += p.target_annual;
+    totalConfirmedAll += conf;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>
+          <div class="td-name">${p.name}</div>
+          <div class="td-loc">${p.location}</div>
+        </td>
+        <td class="r">${fmt(p.target_annual)}</td>
+        <td class="r"><strong>${fmt(conf)}</strong></td>
+        <td class="r" style="color:var(--muted)">${gap > 0 ? fmt(gap) : '<span style="color:var(--green)">✓ On Track</span>'}</td>
+        <td class="r"><span class="pct-pill ${cls}">${pctLabel}</span></td>
+      </tr>`;
+  });
+
+  const totalGap = totalTarget - totalConfirmedAll;
+  const totalPct = Math.round(totalConfirmedAll / totalTarget * 100);
+  const totalCls = statusClass(totalConfirmedAll, totalTarget);
+
+  tfoot.innerHTML = `
+    <tr class="total-row">
+      <td><div class="td-name">Portfolio Total</div><div class="td-loc">5 propiedades</div></td>
+      <td class="r">${fmt(totalTarget)}</td>
+      <td class="r">${fmt(totalConfirmedAll)}</td>
+      <td class="r" style="color:var(--muted)">${fmt(totalGap)}</td>
+      <td class="r"><span class="pct-pill ${totalCls}">${totalPct}%</span></td>
+    </tr>`;
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+buildCards();
+buildCharts();
+buildTable();
+</script>
+</body>
+</html>
