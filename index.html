@@ -384,7 +384,7 @@
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
-const H2 = ['Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const ALL_MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 const PROPERTIES = [
   {
@@ -392,55 +392,45 @@ const PROPERTIES = [
     name: 'House – Stijn',
     location: 'San Miguel de Salinas',
     target_annual: 18000,
-    h1_real: 7303,
-    h1_target: 9000,
-    h2_targets:   [2520, 2990, 1210, 1150, 850, 1660],
-    h2_confirmed: [3470, 3502, null, null, 372, null],
-    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
+    monthly_target: [1500, 1500, 1500, 1500, 1500, 1500, 2520, 2990, 1210, 1150, 850, 1660],
+    monthly_confirmed: [1224, 389, 931, 1230, 1129, 2400, 3470, 3502, null, null, 372, null],
+    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
   },
   {
     id: 'carlos',
     name: 'Villa Carlos',
     location: 'Torrevieja',
     target_annual: 26000,
-    h1_real: 11035,
-    h1_target: 13000,
-    h2_targets:   [3500, 4000, 1800, 2100, 1550, 1700],
-    h2_confirmed: [2767, 3378, null, null, null, null],
-    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
+    monthly_target: [2167, 2167, 2167, 2167, 2167, 2167, 3500, 4000, 1800, 2100, 1550, 1700],
+    monthly_confirmed: [984, 1816, 2468, 2134, 2182, 1451, 2767, 3378, null, null, null, null],
+    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
   },
   {
     id: 'alhama',
     name: 'Apt Noelia – Alhama',
     location: 'Alhama de Murcia',
     target_annual: 14000,
-    h1_real: 7457,
-    h1_target: 7000,
-    h2_targets:   [2700, 2400, 1500, 1200, 1050, 700],
-    h2_confirmed: [2414, 3739, 1854, 277, null, null],
-    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
+    monthly_target: [1167, 1167, 1167, 1167, 1167, 1167, 2700, 2400, 1500, 1200, 1050, 700],
+    monthly_confirmed: [1286, 756, 1250, 1984, 769, 1412, 2414, 3739, 1854, 277, null, null],
+    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
   },
   {
     id: 'cantabria',
     name: 'Apt Cantabria – Noelia',
     location: 'San Vicente de la Barquera',
     target_annual: 15000,
-    h1_real: 5192,
-    h1_target: 7500,
-    h2_targets:   [2500, 4000, 1200, 900, 600, 800],
-    h2_confirmed: [3343, 5296, 1561, 1792, null, null],
-    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
+    monthly_target: [1250, 1250, 1250, 1250, 1250, 1250, 2500, 4000, 1200, 900, 600, 800],
+    monthly_confirmed: [264, 661, 1097, 1148, 965, 1057, 3343, 5296, 1561, 1792, null, null],
+    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
   },
   {
     id: 'jon',
     name: 'Apt Jon Wiggen',
     location: 'Mar Menor Golf Resort',
     target_annual: 8000,
-    h1_real: 554,
-    h1_target: 4000,
-    h2_targets:   [1200, 3500, 900, 1100, 600, 900],
-    h2_confirmed: [740, 2923, null, null, null, null],
-    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
+    monthly_target: [667, 667, 667, 667, 667, 667, 1200, 3500, 900, 1100, 600, 900],
+    monthly_confirmed: [0, 0, 0, 0, 0, 554, 740, 2923, null, null, null, null],
+    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
   }
 ];
 
@@ -448,8 +438,7 @@ const PROPERTIES = [
 const fmt = (n) => '€' + Math.round(n).toLocaleString('es-ES');
 
 function totalConfirmed(p) {
-  const h2 = p.h2_confirmed.reduce((s, v) => s + (v || 0), 0);
-  return p.h1_real + h2;
+  return p.monthly_confirmed.reduce((s, v) => s + (v || 0), 0);
 }
 
 function statusClass(confirmed, target) {
@@ -512,13 +501,14 @@ function confirmedBarColor(real, target) {
   return RED_A;
 }
 
-// For Jul/Aug forward confirmed (booked but future), use indigo
-function confirmedBarColorH2(real, target, monthIdx) {
-  if (real === null) return 'transparent';
-  if (monthIdx >= 2) return 'transparent'; // Sep–Dec: no confirmed data
-  if (real === 0 && monthIdx < 2) return RED_A;
-  // Jul and Aug: forward confirmed bookings → indigo
-  return INDIGO_A;
+// Meses ya cerrados: verde/ambar/rojo segun cumplimiento real vs target.
+// Mes actual o futuro con reservas confirmadas: indigo (reserva a futuro).
+const NOW = new Date();
+const CURRENT_MONTH_IDX = NOW.getFullYear() === 2026 ? NOW.getMonth() : 11;
+function monthBarColor(value, target, monthIdx) {
+  if (value === null) return 'transparent';
+  if (monthIdx < CURRENT_MONTH_IDX) return confirmedBarColor(value, target);
+  return value === 0 ? 'transparent' : INDIGO_A;
 }
 
 function buildCharts() {
@@ -529,7 +519,7 @@ function buildCharts() {
       <div class="chart-card">
         <div class="chart-card-header">
           <div class="chart-title">${p.name}</div>
-          <div class="chart-subtitle">${p.location} · Revenue Jul–Dic 2026 vs Target</div>
+          <div class="chart-subtitle">${p.location} · Revenue Ene–Dic 2026 vs Target</div>
         </div>
         <div class="chart-wrapper">
           <canvas id="${divId}"></canvas>
@@ -548,24 +538,24 @@ function buildCharts() {
       const ctx = document.getElementById(`chart-${p.id}`);
       if (!ctx) return;
 
-      const confirmedData = p.h2_confirmed.map((v, i) => (v === null ? 0 : v));
-      const confirmedColors = p.h2_confirmed.map((v, i) => confirmedBarColorH2(v, p.h2_targets[i], i));
+      const confirmedData = p.monthly_confirmed.map((v, i) => (v === null ? 0 : v));
+      const confirmedColors = p.monthly_confirmed.map((v, i) => monthBarColor(v, p.monthly_target[i], i));
       const confirmedBorders = confirmedColors.map(c => c === 'transparent' ? 'transparent' : c.replace('0.85', '1').replace('0.75', '1'));
 
       // For months with null, show a placeholder bar at small height with muted color
-      const placeholderData = p.h2_confirmed.map((v, i) => {
+      const placeholderData = p.monthly_confirmed.map((v, i) => {
         if (v !== null) return 0;
-        return p.h2_targets[i] * 0.04; // tiny placeholder bar to show "no data"
+        return p.monthly_target[i] * 0.04; // tiny placeholder bar to show "no data"
       });
 
       new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: H2,
+          labels: ALL_MONTHS,
           datasets: [
             {
               label: 'Target',
-              data: p.h2_targets,
+              data: p.monthly_target,
               backgroundColor: TARGET_A,
               borderColor: TARGET_B,
               borderWidth: 1,

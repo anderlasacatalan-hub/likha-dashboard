@@ -3,6 +3,10 @@
 Usage: HOSTEX_ACCESS_TOKEN=... python refresh_data.py
 Does NOT include any guest names or other personal data in the output -- only
 aggregated revenue totals, to keep this safe for the public dashboard.
+
+Produces one combined 12-month (Ene-Dic) series per property instead of a
+lump H1 total + monthly H2, so properties running since January show real
+month-by-month figures across the whole year.
 """
 import calendar
 import datetime
@@ -20,6 +24,9 @@ if not TOKEN:
 
 HEADERS = {"Hostex-Access-Token": TOKEN, "Content-Type": "application/json"}
 
+# h2_targets = objetivos reales Jul-Dic del plan de revenue. Para Ene-Jun no
+# hay objetivo mensual documentado, solo un target_annual -> se reparte a
+# partes iguales entre los 6 meses como aproximacion (marcado en la nota).
 PROPERTIES = [
     {"id": 12492685, "key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas",
      "target_annual": 18000, "h2_targets": [2520, 2990, 1210, 1150, 850, 1660]},
@@ -34,6 +41,7 @@ PROPERTIES = [
 ]
 
 YEAR = 2026
+TODAY = datetime.date.today()
 
 
 def sum_revenue(property_id, start, end):
@@ -71,15 +79,18 @@ def month_range(year, month):
 
 results = []
 for p in PROPERTIES:
-    h1_real = sum_revenue(p["id"], f"{YEAR}-01-01", f"{YEAR}-06-29")
-    # 06-29 to 06-30 (1 day) handled separately to respect the 180-day API limit
-    h1_real += sum_revenue(p["id"], f"{YEAR}-06-30", f"{YEAR}-06-30")
-    h2_confirmed = []
-    for month in range(7, 13):
+    monthly_confirmed = []
+    for month in range(1, 13):
         start, end = month_range(YEAR, month)
-        h2_confirmed.append(sum_revenue(p["id"], start, end) or None)
-    results.append({**p, "h1_real": h1_real, "h2_confirmed": h2_confirmed})
-    print(f"{p['name']}: H1={h1_real} H2={h2_confirmed}", file=sys.stderr)
+        # Meses futuros sin ninguna reserva -> None (sin datos), no 0, para
+        # no pintarlos como "cero ingresos" en el grafico.
+        is_future_month = datetime.date(YEAR, month, 1) > TODAY
+        amount = sum_revenue(p["id"], start, end)
+        monthly_confirmed.append(None if (amount == 0 and is_future_month) else amount)
+    h1_target_monthly = round(p["target_annual"] / 2 / 6)
+    monthly_target = [h1_target_monthly] * 6 + p["h2_targets"]
+    results.append({**p, "monthly_confirmed": monthly_confirmed, "monthly_target": monthly_target})
+    print(f"{p['name']}: {monthly_confirmed}", file=sys.stderr)
 
 # ── Regenerate the PROPERTIES block in index.html ───────────────────────────
 with open("index.html", "r", encoding="utf-8") as f:
@@ -93,11 +104,9 @@ for r in results:
         f"    name: '{r['name']}',\n"
         f"    location: '{r['location']}',\n"
         f"    target_annual: {r['target_annual']},\n"
-        f"    h1_real: {r['h1_real']},\n"
-        f"    h1_target: {r['target_annual'] // 2},\n"
-        f"    h2_targets:   {json.dumps(r['h2_targets'])},\n"
-        f"    h2_confirmed: {json.dumps(r['h2_confirmed'])},\n"
-        "    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'\n"
+        f"    monthly_target: {json.dumps(r['monthly_target'])},\n"
+        f"    monthly_confirmed: {json.dumps(r['monthly_confirmed'])},\n"
+        "    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'\n"
         "  }"
     )
 new_block = "const PROPERTIES = [\n" + ",\n".join(entries) + "\n];"
