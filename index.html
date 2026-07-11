@@ -259,7 +259,33 @@
     }
   </style>
 </head>
-<body>
+<body style="display:none">
+<script>
+// Candado simple (no es seguridad real, solo evita que caiga en manos random).
+// Hash SHA-256 de la clave, para no dejarla en texto plano en el HTML.
+(function () {
+  var PASSWORD_HASH = '87b760ff0b5d32b5c21dd3d2e87371d0596c0a5974f36a3bc73cc031e6d2d3ec'; // clave temporal: likha2026
+  var KEY = 'likha_dashboard_unlocked';
+  async function sha256(text) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  async function tryUnlock() {
+    if (sessionStorage.getItem(KEY) === '1') { document.body.style.display = ''; return; }
+    var attempt = prompt('Contraseña del dashboard:');
+    if (attempt === null) return;
+    var hash = await sha256(attempt);
+    if (hash === PASSWORD_HASH) {
+      sessionStorage.setItem(KEY, '1');
+      document.body.style.display = '';
+    } else {
+      alert('Incorrecta.');
+      tryUnlock();
+    }
+  }
+  tryUnlock();
+})();
+</script>
 
 <header class="page-header">
   <div class="header-inner">
@@ -354,8 +380,7 @@
 </main>
 
 <footer>
-  Likha Homes Revenue System · Claude Code · Datos extraídos del KB el 27 junio 2026
-</footer>
+  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-11</footer>
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
@@ -367,33 +392,33 @@ const PROPERTIES = [
     name: 'House – Stijn',
     location: 'San Miguel de Salinas',
     target_annual: 18000,
-    h1_real: 8982,
-    h1_target: 7620,
-    h2_targets:   [2520, 2990, 1210, 1150,  850, 1660],
-    h2_confirmed: [null, null, null, null, null, null],
-    note: 'H1 +17,9% vs target. H2 sin reservas confirmadas a 27 jun — overrides PriceLabs activos Jul–Ago. Primera temporada alta completa.'
+    h1_real: 7303,
+    h1_target: 9000,
+    h2_targets:   [2520, 2990, 1210, 1150, 850, 1660],
+    h2_confirmed: [3470, 3502, null, null, 372, null],
+    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
   },
   {
     id: 'carlos',
     name: 'Villa Carlos',
     location: 'Torrevieja',
     target_annual: 26000,
-    h1_real: 11036,
-    h1_target: 11350,
+    h1_real: 11035,
+    h1_target: 13000,
     h2_targets:   [3500, 4000, 1800, 2100, 1550, 1700],
-    h2_confirmed: [2401, 3340, null, null, null, null],
-    note: 'Jul €2.401 + Ago €3.340 confirmados (5 reservas Airbnb). Booking.com inactivo — riesgo anual si no activa en jul.'
+    h2_confirmed: [2767, 3378, null, null, null, null],
+    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
   },
   {
     id: 'alhama',
     name: 'Apt Noelia – Alhama',
     location: 'Alhama de Murcia',
     target_annual: 14000,
-    h1_real: 3534,
-    h1_target: 7450,
-    h2_targets:   [2700, 2400, 1500, 1200, 1050,  700],
-    h2_confirmed: [2414, 3458, null, null, null, null],
-    note: 'Anomalía ene–mar irrecuperable (€0). Jul €2.414 + Ago €3.458 confirmados — supera ambos targets. Booking.com rate plan eliminado jun16.'
+    h1_real: 7457,
+    h1_target: 7000,
+    h2_targets:   [2700, 2400, 1500, 1200, 1050, 700],
+    h2_confirmed: [2414, 3739, 1854, 277, null, null],
+    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
   },
   {
     id: 'cantabria',
@@ -401,21 +426,21 @@ const PROPERTIES = [
     location: 'San Vicente de la Barquera',
     target_annual: 15000,
     h1_real: 5192,
-    h1_target: 4400,
-    h2_targets:   [2500, 4000, 1200,  900,  600,  800],
-    h2_confirmed: [3934, 4065, null, null, null, null],
-    note: 'Verano prácticamente lleno. Jul €3.934 (+57% vs target) y Ago €4.065 (≈ target) confirmados. Bloqueo propietario Ago20–26.'
+    h1_target: 7500,
+    h2_targets:   [2500, 4000, 1200, 900, 600, 800],
+    h2_confirmed: [3343, 5296, 1561, 1792, null, null],
+    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
   },
   {
     id: 'jon',
     name: 'Apt Jon Wiggen',
     location: 'Mar Menor Golf Resort',
     target_annual: 8000,
-    h1_real: 0,
-    h1_target: 0,
-    h2_targets:   [1200, 3500,  900, 1100,  600,  900],
-    h2_confirmed: [   0, 2923, null, null, null, null],
-    note: 'Launch 15 jun 2026. Ago €2.923 confirmados (14n). Julio sin reservas aún. 0 reviews — activar Booking.com/VRBO tras 3 reviews.'
+    h1_real: 554,
+    h1_target: 4000,
+    h2_targets:   [1200, 3500, 900, 1100, 600, 900],
+    h2_confirmed: [740, 2923, null, null, null, null],
+    note: 'Actualizado automaticamente desde Hostex — sin desglose manual de notas.'
   }
 ];
 
