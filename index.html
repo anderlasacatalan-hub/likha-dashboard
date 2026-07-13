@@ -253,6 +253,7 @@
       .cards-grid { grid-template-columns: 1fr; }
       .charts-grid { grid-template-columns: 1fr; }
       .stat-value { font-size: 1.35rem; }
+      .chart-wrapper { height: 220px; }
     }
     @media (max-width: 360px) {
       .portfolio-grid { grid-template-columns: 1fr; }
@@ -296,7 +297,7 @@
         <div class="header-subtitle">Revenue Dashboard · 2026</div>
       </div>
     </div>
-    <div class="update-badge">Actualizado: 27 jun 2026</div>
+    <div class="update-badge">Actualizado: 13 julio 2026</div>
   </div>
 </header>
 
@@ -305,28 +306,7 @@
   <!-- PORTFOLIO SUMMARY -->
   <section class="section">
     <p class="section-label">Resumen Portfolio</p>
-    <div class="portfolio-grid">
-      <div class="stat-card">
-        <div class="stat-value">€51.279</div>
-        <div class="stat-label">Revenue Confirmado</div>
-        <div class="stat-sub">Histórico + reservas futuras confirmadas</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">€81.000</div>
-        <div class="stat-label">Target Anual 2026</div>
-        <div class="stat-sub">5 propiedades · escenario realista</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value amber">63,3%</div>
-        <div class="stat-label">% del Target Confirmado</div>
-        <div class="stat-sub">50% del año transcurrido</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">€29.721</div>
-        <div class="stat-label">Gap Restante</div>
-        <div class="stat-sub">Sep–Dic aún sin confirmar</div>
-      </div>
-    </div>
+    <div class="portfolio-grid" id="summary-container"></div>
   </section>
 
   <!-- PROPERTY CARDS -->
@@ -335,9 +315,9 @@
     <div class="cards-grid" id="cards-container"></div>
   </section>
 
-  <!-- MONTHLY H2 CHARTS -->
+  <!-- MONTHLY CHARTS -->
   <section class="section">
-    <p class="section-label">Revenue Mensual Jul–Dic 2026</p>
+    <p class="section-label">Revenue Mensual Ene–Dic 2026</p>
     <div class="charts-grid" id="charts-container"></div>
   </section>
 
@@ -353,6 +333,7 @@
             <th class="r">Confirmado</th>
             <th class="r">Gap</th>
             <th class="r">% Completado</th>
+            <th class="r">Comisión Likha</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -366,13 +347,12 @@
     <p class="section-label">Notas y Alertas</p>
     <div class="notes-box">
       <ul class="notes-list">
-        <li><strong>Datos:</strong> extraídos del knowledge base Likha Homes · 27 junio 2026. Revenue "confirmado" incluye check-ins históricos (ene–jun) y reservas futuras ya confirmadas (jul–ago).</li>
-        <li><strong>Alhama (Apt Noelia):</strong> anomalía ene–mar 2026 irrecuperable (0 revenue, causa pendiente de confirmar). H2 muy sólido: €5.872 confirmados en jul–ago. Target anual reducido de €17.000 a €14.000.</li>
+        <li><strong>Datos:</strong> revenue "confirmado" incluye check-ins históricos y reservas futuras ya confirmadas en Hostex a fecha de la última actualización (ver cabecera/pie de página). Comisión Likha calculada sobre el revenue confirmado, no sobre el target.</li>
+        <li><strong>Alhama (Apt Noelia):</strong> anomalía ene–mar 2026 irrecuperable (0 revenue, causa pendiente de confirmar). Target anual reducido de €17.000 a €14.000.</li>
         <li><strong>Carlos (Villa Torrevieja):</strong> Booking.com inactivo — dirección pendiente de verificación en extranet. Sin activarlo, riesgo de –€1.500–2.000 en H2.</li>
-        <li><strong>Jon Wiggen:</strong> año parcial (launch 15 jun 2026). H1 = €0. Primera reserva: Emily Cuthbert Ago6–20 (€2.923, 14 noches). Julio sin reservas a 27 jun.</li>
-        <li><strong>Cantabria:</strong> revenue jul–ago calculado desde forward calendar (Juana, Rafael, Andreas, Annika, Oihan, Claudia, Fuensanta). Jul €3.934 y Ago €4.065 confirmados — ambos superan o alcanzan el target.</li>
-        <li><strong>Stijn:</strong> H2 sin reservas confirmadas a 27 jun. Revenue H1 = €8.982 (+17,9% vs target H1). Verano depende de conversión de overrides activos en PriceLabs.</li>
-        <li><strong>Comisión Likha estimada anual:</strong> €11.920 (realista) — Stijn 20%, resto 15% sobre neto plataforma.</li>
+        <li><strong>Jon Wiggen:</strong> año parcial, propiedad activa desde junio 2026. Objetivo anual (€8.000) pendiente de revisar con Ander — los objetivos reales Jul-Dic (€8.200) ya lo superan por sí solos.</li>
+        <li><strong>Cantabria:</strong> revenue jul–ago calculado desde forward calendar de reservas ya confirmadas.</li>
+        <li><strong>Stijn:</strong> comisión al 20% (resto de propiedades al 15%) sobre neto de plataforma.</li>
       </ul>
     </div>
   </section>
@@ -380,7 +360,7 @@
 </main>
 
 <footer>
-  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-11</footer>
+  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-13</footer>
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
@@ -392,45 +372,50 @@ const PROPERTIES = [
     name: 'House – Stijn',
     location: 'San Miguel de Salinas',
     target_annual: 18000,
-    monthly_target: [1500, 1500, 1500, 1500, 1500, 1500, 2520, 2990, 1210, 1150, 850, 1660],
+    commission_pct: 20,
+    monthly_target: [1270, 1270, 1270, 1270, 1270, 1270, 2520, 2990, 1210, 1150, 850, 1660],
     monthly_confirmed: [1224, 389, 931, 1230, 1129, 2400, 3470, 3502, null, null, 372, null],
-    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
+    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
   },
   {
     id: 'carlos',
     name: 'Villa Carlos',
     location: 'Torrevieja',
     target_annual: 26000,
-    monthly_target: [2167, 2167, 2167, 2167, 2167, 2167, 3500, 4000, 1800, 2100, 1550, 1700],
+    commission_pct: 15,
+    monthly_target: [1892, 1892, 1892, 1892, 1892, 1892, 3500, 4000, 1800, 2100, 1550, 1700],
     monthly_confirmed: [984, 1816, 2468, 2134, 2182, 1451, 2767, 3378, null, null, null, null],
-    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
+    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
   },
   {
     id: 'alhama',
     name: 'Apt Noelia – Alhama',
     location: 'Alhama de Murcia',
     target_annual: 14000,
-    monthly_target: [1167, 1167, 1167, 1167, 1167, 1167, 2700, 2400, 1500, 1200, 1050, 700],
+    commission_pct: 15,
+    monthly_target: [742, 742, 742, 742, 742, 742, 2700, 2400, 1500, 1200, 1050, 700],
     monthly_confirmed: [1286, 756, 1250, 1984, 769, 1412, 2414, 3739, 1854, 277, null, null],
-    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
+    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
   },
   {
     id: 'cantabria',
     name: 'Apt Cantabria – Noelia',
     location: 'San Vicente de la Barquera',
     target_annual: 15000,
-    monthly_target: [1250, 1250, 1250, 1250, 1250, 1250, 2500, 4000, 1200, 900, 600, 800],
+    commission_pct: 15,
+    monthly_target: [833, 833, 833, 833, 833, 833, 2500, 4000, 1200, 900, 600, 800],
     monthly_confirmed: [264, 661, 1097, 1148, 965, 1057, 3343, 5296, 1561, 1792, null, null],
-    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
+    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
   },
   {
     id: 'jon',
     name: 'Apt Jon Wiggen',
     location: 'Mar Menor Golf Resort',
     target_annual: 8000,
-    monthly_target: [667, 667, 667, 667, 667, 667, 1200, 3500, 900, 1100, 600, 900],
-    monthly_confirmed: [0, 0, 0, 0, 0, 554, 740, 2923, null, null, null, null],
-    note: 'Ene-Jun: objetivo mensual repartido a partes iguales del target anual (aproximado). Jul-Dic: objetivo real del plan de revenue.'
+    commission_pct: 15,
+    monthly_target: [null, null, null, null, null, 0, 1200, 3500, 900, 1100, 600, 900],
+    monthly_confirmed: [null, null, null, null, null, 554, 740, 2923, null, null, null, null],
+    note: "Propiedad activa desde Junio 2026 -- meses anteriores sin datos (no cuentan como objetivo perdido). Resto: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1; Jul-Dic objetivo real del plan de revenue."
   }
 ];
 
@@ -441,12 +426,54 @@ function totalConfirmed(p) {
   return p.monthly_confirmed.reduce((s, v) => s + (v || 0), 0);
 }
 
+function commissionConfirmed(p) {
+  return totalConfirmed(p) * (p.commission_pct / 100);
+}
+
+function commissionTarget(p) {
+  return p.target_annual * (p.commission_pct / 100);
+}
+
 function statusClass(confirmed, target) {
   if (target === 0) return 'slate';
   const r = confirmed / target;
   if (r >= 0.6) return 'green';
   if (r >= 0.4) return 'amber';
   return 'red';
+}
+
+// ── PORTFOLIO SUMMARY ─────────────────────────────────────────────────────────
+function buildSummary() {
+  const container = document.getElementById('summary-container');
+  const totalConfirmedAll = PROPERTIES.reduce((s, p) => s + totalConfirmed(p), 0);
+  const totalTarget = PROPERTIES.reduce((s, p) => s + p.target_annual, 0);
+  const totalCommissionConfirmed = PROPERTIES.reduce((s, p) => s + commissionConfirmed(p), 0);
+  const totalCommissionTarget = PROPERTIES.reduce((s, p) => s + commissionTarget(p), 0);
+  const pct = totalTarget > 0 ? Math.round(totalConfirmedAll / totalTarget * 100) : 0;
+  const cls = statusClass(totalConfirmedAll, totalTarget);
+  const gap = totalTarget - totalConfirmedAll;
+  const commissionGap = totalCommissionTarget - totalCommissionConfirmed;
+
+  // % del año transcurrido, para poder comparar el % de target con el ritmo
+  // real del año en vez de solo un umbral fijo (a principios de año, ir "solo"
+  // al 20% del target puede ir perfectamente a ritmo si es marzo).
+  const startOfYear = new Date(NOW.getFullYear(), 0, 1);
+  const dayOfYear = Math.floor((NOW - startOfYear) / 86400000) + 1;
+  const yearPct = Math.round(dayOfYear / 365 * 100);
+
+  const stacked = (mainValue, mainLabel, subValue, subLabel, mainCls) => `
+    <div class="stat-card">
+      <div class="stat-value ${mainCls || ''}">${mainValue}</div>
+      <div class="stat-label">${mainLabel}</div>
+      <div class="stat-sub">${subLabel}: <strong>${subValue}</strong></div>
+    </div>`;
+
+  container.innerHTML = [
+    stacked(fmt(totalConfirmedAll), 'Revenue Confirmado (facturado)', fmt(totalCommissionConfirmed), 'Comisión Likha'),
+    stacked(fmt(totalTarget), 'Target Anual 2026', fmt(totalCommissionTarget), 'Comisión objetivo'),
+    stacked(`${pct}%`, '% del Target Confirmado', `${yearPct}% del año transcurrido`, 'Referencia', cls),
+    stacked(fmt(gap > 0 ? gap : 0), 'Gap Restante (facturado)', fmt(commissionGap > 0 ? commissionGap : 0), 'Gap Comisión'),
+  ].join('');
 }
 
 // ── PROPERTY CARDS ───────────────────────────────────────────────────────────
@@ -526,7 +553,10 @@ function buildCharts() {
         </div>
         <div class="chart-legend">
           <div class="legend-item"><div class="legend-dot" style="background:${TARGET_B}"></div>Target</div>
-          <div class="legend-item"><div class="legend-dot" style="background:${INDIGO_A}"></div>Confirmado</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${GREEN_A}"></div>Cumplido (≥90%)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${AMBER_A}"></div>Cerca (75-90%)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${RED_A}"></div>Por debajo (&lt;75%)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${INDIGO_A}"></div>Reserva futura</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(100,116,139,0.5)"></div>Sin datos</div>
         </div>
       </div>`;
@@ -538,15 +568,21 @@ function buildCharts() {
       const ctx = document.getElementById(`chart-${p.id}`);
       if (!ctx) return;
 
-      const confirmedData = p.monthly_confirmed.map((v, i) => (v === null ? 0 : v));
-      const confirmedColors = p.monthly_confirmed.map((v, i) => monthBarColor(v, p.monthly_target[i], i));
-      const confirmedBorders = confirmedColors.map(c => c === 'transparent' ? 'transparent' : c.replace('0.85', '1').replace('0.75', '1'));
-
-      // For months with null, show a placeholder bar at small height with muted color
-      const placeholderData = p.monthly_confirmed.map((v, i) => {
-        if (v !== null) return 0;
-        return p.monthly_target[i] * 0.04; // tiny placeholder bar to show "no data"
+      // "Confirmado" y "Sin datos" nunca aplican al mismo mes a la vez -> se
+      // combinan en un unico dataset (antes eran 2 datasets separados, lo que
+      // sumado a "Target" dejaba 3 barras agrupadas por mes = 36 barras en un
+      // grafico de ~340px de ancho en movil, ilegible).
+      const confirmedData = p.monthly_confirmed.map((v, i) => {
+        if (v !== null) return v;
+        return p.monthly_target[i] ? p.monthly_target[i] * 0.04 : 0; // barra minima "sin datos"
       });
+      const confirmedColors = p.monthly_confirmed.map((v, i) => {
+        if (v === null) return 'rgba(100,116,139,0.35)';
+        return monthBarColor(v, p.monthly_target[i], i);
+      });
+      const confirmedBorders = confirmedColors.map(c =>
+        c === 'transparent' ? 'transparent' : c.replace('0.85', '1').replace('0.75', '1').replace('0.35', '0.6')
+      );
 
       new Chart(ctx, {
         type: 'bar',
@@ -570,15 +606,6 @@ function buildCharts() {
               borderWidth: 1,
               borderRadius: 4,
               order: 1
-            },
-            {
-              label: 'Sin datos',
-              data: placeholderData,
-              backgroundColor: 'rgba(100,116,139,0.25)',
-              borderColor: 'rgba(100,116,139,0.4)',
-              borderWidth: 1,
-              borderRadius: 4,
-              order: 0
             }
           ]
         },
@@ -597,8 +624,9 @@ function buildCharts() {
               padding: 10,
               callbacks: {
                 label: (ctx) => {
-                  if (ctx.dataset.label === 'Sin datos') return null;
-                  const val = ctx.raw;
+                  const monthlyConfirmed = p.monthly_confirmed[ctx.dataIndex];
+                  if (ctx.dataset.label === 'Confirmado' && monthlyConfirmed === null) return ' Sin datos';
+                  const val = ctx.dataset.label === 'Confirmado' ? monthlyConfirmed : ctx.raw;
                   if (val === 0 && ctx.dataset.label === 'Confirmado') return ' Confirmado: sin reservas';
                   return ` ${ctx.dataset.label}: €${val.toLocaleString('es-ES')}`;
                 }
@@ -608,7 +636,13 @@ function buildCharts() {
           scales: {
             x: {
               grid: { color: 'rgba(51,65,85,0.5)' },
-              ticks: { color: '#94a3b8', font: { size: 11 } }
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 11 },
+                autoSkip: true,
+                maxRotation: 0,
+                maxTicksLimit: window.innerWidth < 480 ? 6 : 12
+              }
             },
             y: {
               grid: { color: 'rgba(51,65,85,0.5)' },
@@ -631,7 +665,7 @@ function buildTable() {
   const tbody = document.getElementById('table-body');
   const tfoot = document.getElementById('table-foot');
 
-  let totalTarget = 0, totalConfirmedAll = 0;
+  let totalTarget = 0, totalConfirmedAll = 0, totalCommissionAll = 0;
 
   PROPERTIES.forEach(p => {
     const conf = totalConfirmed(p);
@@ -639,9 +673,11 @@ function buildTable() {
     const pct = p.target_annual > 0 ? Math.round(conf / p.target_annual * 100) : null;
     const cls = statusClass(conf, p.target_annual);
     const pctLabel = pct !== null ? `${pct}%` : 'N/A';
+    const commission = commissionConfirmed(p);
 
     totalTarget += p.target_annual;
     totalConfirmedAll += conf;
+    totalCommissionAll += commission;
 
     tbody.innerHTML += `
       <tr>
@@ -653,6 +689,7 @@ function buildTable() {
         <td class="r"><strong>${fmt(conf)}</strong></td>
         <td class="r" style="color:var(--muted)">${gap > 0 ? fmt(gap) : '<span style="color:var(--green)">✓ On Track</span>'}</td>
         <td class="r"><span class="pct-pill ${cls}">${pctLabel}</span></td>
+        <td class="r">${fmt(commission)} <span style="color:var(--muted)">(${p.commission_pct}%)</span></td>
       </tr>`;
   });
 
@@ -667,10 +704,12 @@ function buildTable() {
       <td class="r">${fmt(totalConfirmedAll)}</td>
       <td class="r" style="color:var(--muted)">${fmt(totalGap)}</td>
       <td class="r"><span class="pct-pill ${totalCls}">${totalPct}%</span></td>
+      <td class="r">${fmt(totalCommissionAll)}</td>
     </tr>`;
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
+buildSummary();
 buildCards();
 buildCharts();
 buildTable();
