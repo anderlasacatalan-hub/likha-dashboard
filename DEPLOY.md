@@ -49,16 +49,52 @@ https://TU_USERNAME.github.io/likha-dashboard
 
 ---
 
-## Actualizar datos en el futuro
+## Actualizar datos manualmente
 
-Los datos están hardcodeados en `index.html` (líneas ~350-420, array `PROPERTIES`).  
-Para actualizar: editar el array y hacer `git push`.
+Los datos vienen del array `PROPERTIES` en `index.html`, regenerado por `refresh_data.py`.
+Para forzar una actualización manual desde tu ordenador:
 
 ```powershell
-cd C:\Users\ASUS\likha-dashboard
+cd C:\Users\ander\Projects\likha-dashboard
+$env:PYTHONIOENCODING="utf-8"; $env:PYTHONUTF8="1"
+$env:HOSTEX_ACCESS_TOKEN = (Get-Content .env | Select-String HOSTEX_ACCESS_TOKEN).ToString().Split('=')[1]
+python refresh_data.py
 git add index.html
 git commit -m "feat: update revenue data YYYY-MM-DD"
 git push
 ```
 
 GitHub Pages se actualiza automáticamente en ~1 minuto.
+
+---
+
+## Automatización (2026-07-13): refresco diario sin intervención manual
+
+`dashboard_refresh_modal.py` es una app de Modal con una función programada
+(`modal.Period(hours=24)`) que hace exactamente lo mismo que el paso manual de
+arriba, pero sola: llama a Hostex, recalcula `PROPERTIES` y sube el `index.html`
+actualizado directamente a GitHub vía la API de contenidos (sin pasar por tu
+ordenador ni por `git push`).
+
+**Setup (una sola vez, ya hecho):**
+1. Secret de Modal `likha-github` con `GITHUB_TOKEN` — fine-grained PAT,
+   repositorio `likha-dashboard`, permiso "Contents: Read and write", sin
+   expiración. Creado en `github.com/settings/tokens`.
+2. Reutiliza el secret `likha-secrets` (perfil `anderlasacatalan`, el mismo de
+   `likha-guest-messaging`) para `HOSTEX_ACCESS_TOKEN` y, si algo falla o hay
+   avisos (p.ej. el de Jon Wiggen, ver `refresh_data.py`), para avisar por
+   Telegram con `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`.
+3. `modal deploy dashboard_refresh_modal.py`.
+
+**Para lanzar una ejecución ahora mismo sin esperar al cron:**
+```powershell
+cd C:\Users\ander\Projects\likha-dashboard
+$env:PYTHONIOENCODING="utf-8"; $env:PYTHONUTF8="1"
+python -m modal run dashboard_refresh_modal.py
+```
+
+**Si falla:** avisa por Telegram (mismo bot que guest-messaging) y no toca
+nada en GitHub. `refresh_data.py` (el script manual) y
+`dashboard_refresh_modal.py` (el automático) tienen la MISMA lógica de
+cálculo duplicada a propósito — si cambias el cálculo de `monthly_target` o
+`active_from_month` en uno, replica el cambio en el otro.
