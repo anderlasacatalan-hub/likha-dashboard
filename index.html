@@ -69,6 +69,19 @@
       color: var(--muted);
       white-space: nowrap;
     }
+    .header-actions { display: flex; align-items: center; gap: 0.6rem; }
+    .fullscreen-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      padding: 0.4rem 0.7rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      cursor: pointer;
+      line-height: 1;
+      font-family: inherit;
+    }
+    .fullscreen-btn:hover { background: var(--border); }
 
     /* ── LAYOUT ─────────────────────────────────────────── */
     .container { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
@@ -329,7 +342,10 @@
         <div class="header-subtitle">Revenue Dashboard · 2026</div>
       </div>
     </div>
-    <div class="update-badge">Actualizado: 20 julio 2026</div>
+    <div class="header-actions">
+      <div class="update-badge">Actualizado: 20 julio 2026</div>
+      <button type="button" class="fullscreen-btn" id="fullscreen-btn" title="Pantalla completa">⛶</button>
+    </div>
   </div>
 </header>
 
@@ -747,11 +763,62 @@ function buildTable() {
     </tr>`;
 }
 
+// ── PANTALLA COMPLETA ───────────────────────────────────────────────────────
+// Usa la Fullscreen API estandar (con los prefijos viejos de Safari/Firefox
+// por si acaso). Requiere gesto real del usuario (click) para funcionar -- no
+// se puede activar sola al cargar la pagina. Si el navegador/contexto la
+// deniega (ej. un iframe sin el atributo allow="fullscreen"), el boton no
+// hace nada visible en vez de lanzar un error -- no es critico para usar el
+// dashboard, solo una comodidad.
+function initFullscreenButton() {
+  var btn = document.getElementById('fullscreen-btn');
+  if (!btn) return;
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+  }
+
+  function updateIcon() {
+    btn.textContent = isFullscreen() ? '⛶' : '⛶';
+    btn.title = isFullscreen() ? 'Salir de pantalla completa' : 'Pantalla completa';
+  }
+
+  function handleRejection(e) {
+    // requestFullscreen()/exitFullscreen() devuelven una Promise que puede
+    // rechazarse (ej. sin permiso "fullscreen" dentro de un iframe) en vez de
+    // lanzar una excepcion sincrona -- sin este catch quedaba como "unhandled
+    // promise rejection" en la consola en lugar de un aviso tranquilo.
+    console.warn('Pantalla completa no disponible en este contexto:', e);
+  }
+
+  btn.addEventListener('click', function () {
+    var el = document.documentElement;
+    try {
+      var action;
+      if (!isFullscreen()) {
+        var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+        if (req) action = req.call(el);
+      } else {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+        if (exit) action = exit.call(document);
+      }
+      if (action && typeof action.catch === 'function') action.catch(handleRejection);
+    } catch (e) {
+      handleRejection(e);
+    }
+  });
+
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange'].forEach(function (evt) {
+    document.addEventListener(evt, updateIcon);
+  });
+}
+
 // ── INIT ─────────────────────────────────────────────────────────────────────
 buildSummary();
 buildCards();
 buildCharts();
 buildTable();
+initFullscreenButton();
 </script>
 </body>
 </html>
