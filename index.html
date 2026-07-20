@@ -261,34 +261,65 @@
     }
   </style>
 </head>
-<body style="display:none">
+<body>
+<!-- Candado simple (no es seguridad real, solo evita que caiga en manos random).
+     Formulario HTML normal en vez de prompt()/alert(): esos dialogos nativos
+     los bloquean muchos contextos embebidos (ej. un iframe dentro de una nota
+     de Obsidian), dejando la pagina colgada en negro sin forma de desbloquear. -->
+<div id="lock-screen" style="position:fixed; inset:0; background:#0f172a; display:flex; align-items:center; justify-content:center; z-index:9999; padding:1.5rem;">
+  <form id="lock-form" style="width:100%; max-width:280px; text-align:center;" autocomplete="off">
+    <div style="font-family:'Inter',system-ui,sans-serif; color:#f1f5f9; font-weight:700; margin-bottom:1rem;">🔒 Likha Homes Dashboard</div>
+    <input type="password" id="lock-input" placeholder="Contraseña" autocomplete="off"
+      style="width:100%; padding:0.6rem 0.75rem; border-radius:0.5rem; border:1px solid #334155; background:#1e293b; color:#f1f5f9; font-family:inherit; font-size:0.9rem; margin-bottom:0.6rem;">
+    <button type="submit"
+      style="width:100%; padding:0.6rem 0.75rem; border-radius:0.5rem; border:none; background:#3b82f6; color:white; font-family:inherit; font-size:0.9rem; font-weight:600; cursor:pointer;">Entrar</button>
+    <div id="lock-error" style="display:none; color:#fca5a5; font-family:'Inter',system-ui,sans-serif; font-size:0.75rem; margin-top:0.6rem;">Contraseña incorrecta.</div>
+  </form>
+</div>
 <script>
-// Candado simple (no es seguridad real, solo evita que caiga en manos random).
-// Hash SHA-256 de la clave, para no dejarla en texto plano en el HTML.
 (function () {
   var PASSWORD_HASH = '87b760ff0b5d32b5c21dd3d2e87371d0596c0a5974f36a3bc73cc031e6d2d3ec'; // clave temporal: likha2026
   var KEY = 'likha_dashboard_unlocked';
+  var lockScreen = document.getElementById('lock-screen');
+  var form = document.getElementById('lock-form');
+  var input = document.getElementById('lock-input');
+  var errorMsg = document.getElementById('lock-error');
+  // #app-content se busca en el momento de desbloquear, no aqui arriba: este
+  // script corre en cuanto el parser lo alcanza, ANTES de que el <div
+  // id="app-content"> (que va despues en el HTML) exista todavia en el DOM --
+  // guardar su referencia ya en este punto seria siempre null.
+
   async function sha256(text) {
     var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
-  async function tryUnlock() {
-    if (sessionStorage.getItem(KEY) === '1') { document.body.style.display = ''; return; }
-    var attempt = prompt('Contraseña del dashboard:');
-    if (attempt === null) return;
-    var hash = await sha256(attempt);
-    if (hash === PASSWORD_HASH) {
-      sessionStorage.setItem(KEY, '1');
-      document.body.style.display = '';
-    } else {
-      alert('Incorrecta.');
-      tryUnlock();
-    }
+
+  function unlock() {
+    lockScreen.style.display = 'none';
+    document.getElementById('app-content').style.display = '';
   }
-  tryUnlock();
+
+  if (sessionStorage.getItem(KEY) === '1') {
+    unlock();
+  } else {
+    input.focus();
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var hash = await sha256(input.value);
+      if (hash === PASSWORD_HASH) {
+        sessionStorage.setItem(KEY, '1');
+        unlock();
+      } else {
+        errorMsg.style.display = '';
+        input.value = '';
+        input.focus();
+      }
+    });
+  }
 })();
 </script>
 
+<div id="app-content" style="display:none">
 <header class="page-header">
   <div class="header-inner">
     <div class="header-brand">
@@ -367,6 +398,8 @@
 
 <footer>
   Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-20</footer>
+
+</div><!-- /#app-content -->
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
