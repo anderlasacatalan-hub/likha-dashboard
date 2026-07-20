@@ -55,13 +55,28 @@ PROPERTIES = [
 # a 0) en vez de ocultarlo repartiendo mal el resto del anyo. Pendiente de que
 # Ander confirme el target_annual real de Jon Wiggen.
 
-YEAR = 2026
+YEAR = 2026  # Ano de negocio de este dashboard (targets/h2_targets son especificos de 2026).
 TODAY = datetime.date.today()
+if TODAY.year != YEAR:
+    # No se auto-avanza YEAR porque target_annual/h2_targets son cifras del
+    # plan de negocio de un ano concreto -- avanzar solo el numero sin
+    # actualizar esas cifras generaria datos con sentido pero incorrectos,
+    # peor que un aviso claro de que hace falta revisión humana.
+    print(
+        f"AVISO: hoy ({TODAY.isoformat()}) ya no es del ano {YEAR} configurado en este script. "
+        "Actualiza YEAR, target_annual y h2_targets de cada propiedad para el nuevo ano antes "
+        "de seguir usando este refresco automatico.",
+        file=sys.stderr,
+    )
 ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
 def sum_revenue(property_id, start, end):
+    # Deja que un fallo real de la API (red, 401, 5xx) reviente aqui en vez
+    # de devolver 0 silenciosamente -- antes un error de Hostex se veia
+    # identico a "sin reservas ese mes", que es exactamente el dato que este
+    # dashboard existe para reportar bien.
     total = 0
     reservations = []
     offset = 0
@@ -78,8 +93,10 @@ def sum_revenue(property_id, start, end):
                 "offset": offset,
             },
             timeout=20,
-        ).json()
-        batch = (resp.get("data") or {}).get("reservations") or []
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        batch = (body.get("data") or {}).get("reservations") or []
         reservations.extend(batch)
         if len(batch) < 100:
             break
@@ -139,14 +156,15 @@ with open("index.html", "r", encoding="utf-8") as f:
 
 entries = []
 for r in results:
+    # La explicacion generica del calculo de objetivo H1 vive UNA vez como
+    # caption compartido en index.html (ver <p id="cards-methodology-note">),
+    # no repetida literalmente en las 5 tarjetas -- aqui solo queda lo que es
+    # especifico de esta propiedad (si aplica).
     note = (
-        "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre "
-        "los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
+        ""
         if r.get("active_from_month", 1) == 1 else
         f"Propiedad activa desde {ALL_MONTHS_ES[r['active_from_month'] - 1]} {YEAR} -- meses "
-        "anteriores sin datos (no cuentan como objetivo perdido). Resto: objetivo mensual = "
-        "(target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1; "
-        "Jul-Dic objetivo real del plan de revenue."
+        "anteriores sin datos (no cuentan como objetivo perdido)."
     )
     entries.append(
         "  {\n"

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" style="background:#0f172a">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -148,7 +148,7 @@
     .card-pct.green { color: var(--green); }
     .card-pct.amber { color: var(--amber); }
     .card-pct.red   { color: var(--red); }
-    .card-pct-label { font-size: 0.62rem; color: var(--muted); }
+    .card-pct-label { font-size: 0.68rem; color: var(--muted); }
     .progress-bar { background: var(--border); border-radius: 9999px; height: 5px; margin-bottom: 0.75rem; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 9999px; }
     .progress-fill.green { background: var(--green); }
@@ -158,6 +158,7 @@
     .card-confirmed { font-weight: 600; }
     .card-target { color: var(--muted); }
     .card-note { font-size: 0.68rem; color: var(--muted); margin-top: 0.625rem; line-height: 1.45; padding-top: 0.625rem; border-top: 1px solid var(--border); }
+    .cards-methodology-note { font-size: 0.72rem; color: var(--muted); line-height: 1.5; margin: -0.5rem 0 1rem; max-width: 62ch; }
 
     /* ── CHARTS ─────────────────────────────────────────── */
     .charts-grid {
@@ -215,7 +216,7 @@
     }
     .pct-pill.green { background: rgba(34,197,94,.15); color: var(--green); }
     .pct-pill.amber { background: rgba(245,158,11,.15); color: var(--amber); }
-    .pct-pill.red   { background: rgba(239,68,68,.15);  color: var(--red); }
+    .pct-pill.red   { background: rgba(239,68,68,.15);  color: #fca5a5; } /* rojo mas claro que --red: en texto pequeño sobre este fondo, --red da ~3.4:1 (falla AA); #fca5a5 da ~6.8:1 */
     .pct-pill.slate { background: rgba(100,116,139,.15); color: var(--slate); }
     .total-row td { font-weight: 700; background: rgba(59,130,246,.05); border-top: 2px solid var(--border); border-bottom: none; }
 
@@ -249,14 +250,14 @@
     /* ── RESPONSIVE ─────────────────────────────────────── */
     @media (max-width: 640px) {
       .container { padding: 1.25rem 1rem 2.5rem; }
-      .portfolio-grid { grid-template-columns: 1fr 1fr; }
+      /* 1 columna en vez de 2x2: con etiquetas largas ("Revenue Confirmado
+         (facturado)") 2 columnas dejaba ~150px por tarjeta y las etiquetas
+         envolvían a 2 líneas de forma apretada. */
+      .portfolio-grid { grid-template-columns: 1fr; }
       .cards-grid { grid-template-columns: 1fr; }
       .charts-grid { grid-template-columns: 1fr; }
       .stat-value { font-size: 1.35rem; }
       .chart-wrapper { height: 220px; }
-    }
-    @media (max-width: 360px) {
-      .portfolio-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -297,7 +298,7 @@
         <div class="header-subtitle">Revenue Dashboard · 2026</div>
       </div>
     </div>
-    <div class="update-badge">Actualizado: 19 julio 2026</div>
+    <div class="update-badge">Actualizado: 20 julio 2026</div>
   </div>
 </header>
 
@@ -312,6 +313,11 @@
   <!-- PROPERTY CARDS -->
   <section class="section">
     <p class="section-label">Por Propiedad</p>
+    <p class="cards-methodology-note">
+      Objetivo Ene-Jun de cada propiedad = (target anual − objetivos reales Jul-Dic) repartido
+      entre los meses de H1 en los que la propiedad ya estaba activa. Jul-Dic: objetivo real del
+      plan de revenue.
+    </p>
     <div class="cards-grid" id="cards-container"></div>
   </section>
 
@@ -360,7 +366,7 @@
 </main>
 
 <footer>
-  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-19</footer>
+  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-20</footer>
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
@@ -374,8 +380,8 @@ const PROPERTIES = [
     target_annual: 18000,
     commission_pct: 20,
     monthly_target: [1270, 1270, 1270, 1270, 1270, 1270, 2520, 2990, 1210, 1150, 850, 1660],
-    monthly_confirmed: [1224, 389, 931, 1230, 1129, 2400, 3470, 3502, null, null, null, null],
-    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
+    monthly_confirmed: [1224, 389, 931, 1230, 1129, 2400, 3470, 1974, null, null, null, null],
+    note: ""
   },
   {
     id: 'carlos',
@@ -384,8 +390,8 @@ const PROPERTIES = [
     target_annual: 26000,
     commission_pct: 15,
     monthly_target: [1892, 1892, 1892, 1892, 1892, 1892, 3500, 4000, 1800, 2100, 1550, 1700],
-    monthly_confirmed: [984, 1816, 2468, 2134, 2182, 1451, 3260, 3378, null, null, null, null],
-    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
+    monthly_confirmed: [984, 1816, 2468, 2134, 2182, 1451, 3260, 4319, 803, null, null, null],
+    note: ""
   },
   {
     id: 'alhama',
@@ -394,8 +400,8 @@ const PROPERTIES = [
     target_annual: 14000,
     commission_pct: 15,
     monthly_target: [742, 742, 742, 742, 742, 742, 2700, 2400, 1500, 1200, 1050, 700],
-    monthly_confirmed: [1286, 756, 1250, 1984, 769, 1412, 2414, 3739, 1854, 277, null, null],
-    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
+    monthly_confirmed: [1286, 756, 1250, 1984, 769, 1412, 2414, 4129, 1387, 277, null, null],
+    note: ""
   },
   {
     id: 'cantabria',
@@ -405,7 +411,7 @@ const PROPERTIES = [
     commission_pct: 15,
     monthly_target: [833, 833, 833, 833, 833, 833, 2500, 4000, 1200, 900, 600, 800],
     monthly_confirmed: [264, 661, 1097, 1148, 965, 1057, 3140, 5296, 965, 2125, null, null],
-    note: "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
+    note: ""
   },
   {
     id: 'jon',
@@ -415,7 +421,7 @@ const PROPERTIES = [
     commission_pct: 15,
     monthly_target: [null, null, null, null, null, 0, 1200, 3500, 900, 1100, 600, 900],
     monthly_confirmed: [null, null, null, null, null, 554, 1063, 2923, null, null, null, null],
-    note: "Propiedad activa desde Junio 2026 -- meses anteriores sin datos (no cuentan como objetivo perdido). Resto: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1; Jul-Dic objetivo real del plan de revenue."
+    note: "Propiedad activa desde Junio 2026 -- meses anteriores sin datos (no cuentan como objetivo perdido)."
   }
 ];
 
@@ -504,7 +510,7 @@ function buildCards() {
           <span class="card-confirmed">${fmt(confirmed)}</span>
           <span class="card-target">de ${fmt(p.target_annual)}</span>
         </div>
-        <div class="card-note">${p.note}</div>
+        ${p.note ? `<div class="card-note">${p.note}</div>` : ''}
       </div>`;
   });
 }
@@ -694,7 +700,7 @@ function buildTable() {
   });
 
   const totalGap = totalTarget - totalConfirmedAll;
-  const totalPct = Math.round(totalConfirmedAll / totalTarget * 100);
+  const totalPct = totalTarget > 0 ? Math.round(totalConfirmedAll / totalTarget * 100) : 0;
   const totalCls = statusClass(totalConfirmedAll, totalTarget);
 
   tfoot.innerHTML = `
