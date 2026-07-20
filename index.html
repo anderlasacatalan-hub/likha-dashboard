@@ -290,17 +290,23 @@
   </form>
 </div>
 <script>
-(function () {
+function initLockScreen() {
+  // Todo el cuerpo de esta funcion corre dentro de DOMContentLoaded (ver
+  // abajo), NUNCA antes -- este script va ANTES que el <div id="app-content">
+  // en el HTML, asi que buscar ese elemento (o llamar a unlock(), que lo
+  // busca) demasiado pronto siempre devuelve null. Ya paso una vez con el
+  // camino de auto-desbloqueo (sessionStorage ya tenia la clave guardada):
+  // lockScreen se ocultaba bien, pero unlock() lanzaba al intentar tocar
+  // app-content=null, así que el contenido nunca llegaba a mostrarse -- todo
+  // en negro, sin candado y sin dashboard. Envolver TODO en DOMContentLoaded
+  // evita que se repita en cualquier camino futuro de este script.
   var PASSWORD_HASH = '87b760ff0b5d32b5c21dd3d2e87371d0596c0a5974f36a3bc73cc031e6d2d3ec'; // clave temporal: likha2026
   var KEY = 'likha_dashboard_unlocked';
   var lockScreen = document.getElementById('lock-screen');
+  var appContent = document.getElementById('app-content');
   var form = document.getElementById('lock-form');
   var input = document.getElementById('lock-input');
   var errorMsg = document.getElementById('lock-error');
-  // #app-content se busca en el momento de desbloquear, no aqui arriba: este
-  // script corre en cuanto el parser lo alcanza, ANTES de que el <div
-  // id="app-content"> (que va despues en el HTML) exista todavia en el DOM --
-  // guardar su referencia ya en este punto seria siempre null.
 
   async function sha256(text) {
     var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -309,7 +315,7 @@
 
   function unlock() {
     lockScreen.style.display = 'none';
-    document.getElementById('app-content').style.display = '';
+    appContent.style.display = '';
   }
 
   if (sessionStorage.getItem(KEY) === '1') {
@@ -329,7 +335,13 @@
       }
     });
   }
-})();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLockScreen);
+} else {
+  initLockScreen();
+}
 </script>
 
 <div id="app-content" style="display:none">
