@@ -55,6 +55,24 @@ PROPERTIES = [
 # a 0) en vez de ocultarlo repartiendo mal el resto del anyo. Pendiente de que
 # Ander confirme el target_annual real de Jon Wiggen.
 
+# Ajustes manuales de ingresos que Hostex NUNCA va a reflejar solo porque no
+# vive en esa plataforma (ej. pagos en efectivo fuera de plataforma que
+# Ander confirma directamente). Cada entrada suma amount_eur al mes indicado
+# de esa propiedad. Reversible: borra la entrada para deshacer -- no toca
+# nada en Hostex, solo el calculo de este dashboard.
+MANUAL_ADJUSTMENTS = [
+    {
+        "property_key": "jon", "month": 7, "amount_eur": 1780,
+        "reason": (
+            "Reserva Alex Tsioukaris (Hostex 0-HMTA5SB334-if3431krxv, check-in "
+            "2026-07-16): Airbnb solo registra 323€ por las 2 noches gestionadas "
+            "por la plataforma; el resto de la estancia se pago en efectivo fuera "
+            "de Hostex (confirmado por Ander)."
+        ),
+        "added": "2026-07-20",
+    },
+]
+
 YEAR = 2026  # Ano de negocio de este dashboard (targets/h2_targets son especificos de 2026).
 TODAY = datetime.date.today()
 if TODAY.year != YEAR:
@@ -125,6 +143,10 @@ for p in PROPERTIES:
         # no pintarlos como "cero ingresos" en el grafico.
         is_future_month = datetime.date(YEAR, month, 1) > TODAY
         amount = sum_revenue(p["id"], start, end)
+        amount += sum(
+            a["amount_eur"] for a in MANUAL_ADJUSTMENTS
+            if a["property_key"] == p["key"] and a["month"] == month
+        )
         monthly_confirmed.append(None if (amount == 0 and is_future_month) else amount)
 
     # Objetivo H1 = lo que falta del target anual tras restar los h2_targets
@@ -166,6 +188,11 @@ for r in results:
         f"Propiedad activa desde {ALL_MONTHS_ES[r['active_from_month'] - 1]} {YEAR} -- meses "
         "anteriores sin datos (no cuentan como objetivo perdido)."
     )
+    prop_adjustments = [a for a in MANUAL_ADJUSTMENTS if a["property_key"] == r["key"]]
+    if prop_adjustments:
+        adj_total = sum(a["amount_eur"] for a in prop_adjustments)
+        adj_note = f"Incluye {adj_total}€ de pago en efectivo fuera de plataforma, confirmado por Ander."
+        note = f"{note} {adj_note}".strip()
     entries.append(
         "  {\n"
         f"    id: '{r['key']}',\n"

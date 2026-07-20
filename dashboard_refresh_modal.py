@@ -58,6 +58,21 @@ YEAR = 2026
 ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
+# Mismo MANUAL_ADJUSTMENTS que refresh_data.py -- ver ese archivo para el
+# comentario completo. Reversible: borra la entrada para deshacer.
+MANUAL_ADJUSTMENTS = [
+    {
+        "property_key": "jon", "month": 7, "amount_eur": 1780,
+        "reason": (
+            "Reserva Alex Tsioukaris (Hostex 0-HMTA5SB334-if3431krxv, check-in "
+            "2026-07-16): Airbnb solo registra 323€ por las 2 noches gestionadas "
+            "por la plataforma; el resto de la estancia se pago en efectivo fuera "
+            "de Hostex (confirmado por Ander)."
+        ),
+        "added": "2026-07-20",
+    },
+]
+
 
 def _sum_revenue(property_id, start, end, hostex_token):
     import requests
@@ -109,6 +124,10 @@ def _regenerate_html(html, hostex_token, today):
                 continue
             is_future_month = datetime.date(YEAR, month, 1) > today
             amount = _sum_revenue(p["id"], start, end, hostex_token)
+            amount += sum(
+                a["amount_eur"] for a in MANUAL_ADJUSTMENTS
+                if a["property_key"] == p["key"] and a["month"] == month
+            )
             monthly_confirmed.append(None if (amount == 0 and is_future_month) else amount)
 
         h1_months_active = max(0, 6 - (active_from - 1))
@@ -129,15 +148,21 @@ def _regenerate_html(html, hostex_token, today):
 
     entries = []
     for r in results:
+        # La explicacion generica del calculo de objetivo H1 vive UNA vez como
+        # caption compartido en index.html (ver <p id="cards-methodology-note">),
+        # no repetida literalmente en las 5 tarjetas -- mismo criterio que
+        # refresh_data.py, aqui solo queda lo especifico de esta propiedad.
         note = (
-            "Ene-Jun: objetivo mensual = (target anual - objetivos reales Jul-Dic) repartido entre "
-            "los meses activos de H1. Jul-Dic: objetivo real del plan de revenue."
+            ""
             if r.get("active_from_month", 1) == 1 else
             f"Propiedad activa desde {ALL_MONTHS_ES[r['active_from_month'] - 1]} {YEAR} -- meses "
-            "anteriores sin datos (no cuentan como objetivo perdido). Resto: objetivo mensual = "
-            "(target anual - objetivos reales Jul-Dic) repartido entre los meses activos de H1; "
-            "Jul-Dic objetivo real del plan de revenue."
+            "anteriores sin datos (no cuentan como objetivo perdido)."
         )
+        prop_adjustments = [a for a in MANUAL_ADJUSTMENTS if a["property_key"] == r["key"]]
+        if prop_adjustments:
+            adj_total = sum(a["amount_eur"] for a in prop_adjustments)
+            adj_note = f"Incluye {adj_total}€ de pago en efectivo fuera de plataforma, confirmado por Ander."
+            note = f"{note} {adj_note}".strip()
         entries.append(
             "  {\n"
             f"    id: '{r['key']}',\n"
