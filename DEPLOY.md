@@ -102,3 +102,22 @@ nada en GitHub. `refresh_data.py` (el script manual) y
 `dashboard_refresh_modal.py` (el automático) tienen la MISMA lógica de
 cálculo duplicada a propósito — si cambias el cálculo de `monthly_target` o
 `active_from_month` en uno, replica el cambio en el otro.
+
+## Ajustes manuales de ingresos (2026-07-20)
+
+Hostex solo sabe de lo que pasa por la plataforma. Cuando hay un pago real
+que Hostex nunca va a ver (ej. efectivo fuera de plataforma), se añade una
+entrada a `MANUAL_ADJUSTMENTS` en **ambos** archivos (`refresh_data.py` y
+`dashboard_refresh_modal.py`) — suma su `amount_eur` al mes de esa propiedad
+y lo deja anotado en la tarjeta del dashboard, sin tocar nada en Hostex.
+
+**Entrada actual:** Jon Wiggen, julio 2026, +1.780€ — reserva de Alex
+Tsioukaris (Hostex `0-HMTA5SB334-if3431krxv`, check-in 16 jul): Airbnb solo
+registra 323€ por 2 noches, el resto de la estancia se pagó en efectivo
+fuera de la plataforma (confirmado por Ander).
+
+**Reversible:** borra la entrada de `MANUAL_ADJUSTMENTS` en los dos archivos,
+vuelve a correr `refresh_data.py` (o espera al próximo cron) y redeploya
+`dashboard_refresh_modal.py` con `.\modal.ps1 deploy dashboard_refresh_modal.py`.
+Desplegado tras este cambio: `.\modal.ps1 deploy dashboard_refresh_modal.py`
+(2026-07-20) para que el cron diario ya incluya este ajuste.
