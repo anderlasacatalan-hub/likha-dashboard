@@ -84,14 +84,18 @@ ordenador ni por `git push`).
    `likha-guest-messaging`) para `HOSTEX_ACCESS_TOKEN` y, si algo falla o hay
    avisos (p.ej. el de Jon Wiggen, ver `refresh_data.py`), para avisar por
    Telegram con `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`.
-3. `modal deploy dashboard_refresh_modal.py`.
+3. `.\modal.ps1 deploy dashboard_refresh_modal.py`.
 
 **Para lanzar una ejecución ahora mismo sin esperar al cron:**
 ```powershell
 cd C:\Users\ander\Projects\likha-dashboard
-$env:PYTHONIOENCODING="utf-8"; $env:PYTHONUTF8="1"
-python -m modal run dashboard_refresh_modal.py
+.\modal.ps1 run dashboard_refresh_modal.py
 ```
+
+**Usa siempre `.\modal.ps1`** en vez de `modal` / `python -m modal` directamente — es un wrapper
+de este repo que fija `MODAL_PROFILE=anderlasacatalan` en cada comando (el perfil activo de Modal
+es una config global del CLI, no por carpeta, y otra sesión trabajando en otro proyecto en esta
+misma máquina puede dejarlo apuntando al workspace equivocado sin avisar).
 
 **Si falla:** avisa por Telegram (mismo bot que guest-messaging) y no toca
 nada en GitHub. `refresh_data.py` (el script manual) y
