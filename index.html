@@ -136,6 +136,52 @@
       margin-top: 0.25rem;
     }
 
+    /* ── COMISION DEL MES (destacado) ───────────────────── */
+    .hero-commission {
+      background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(59,130,246,0.08));
+      border: 1px solid var(--border);
+      border-radius: 0.875rem;
+      padding: 1.5rem 1.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .hero-commission-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .hero-commission-value {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: var(--green);
+    }
+    .hero-commission-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      max-width: 46ch;
+    }
+    .hero-commission-compare {
+      text-align: right;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .hero-commission-compare strong { color: var(--text); }
+    @media (max-width: 640px) {
+      .hero-commission { flex-direction: column; align-items: flex-start; }
+      .hero-commission-compare { text-align: left; }
+      .hero-commission-value { font-size: 2.25rem; }
+    }
+
     /* ── PROPERTY CARDS ─────────────────────────────────── */
     .cards-grid {
       display: grid;
@@ -363,6 +409,11 @@ if (document.readyState === 'loading') {
 
 <main class="container">
 
+  <!-- COMISION DESTACADA DEL MES -->
+  <section class="section">
+    <div class="hero-commission" id="commission-hero"></div>
+  </section>
+
   <!-- PORTFOLIO SUMMARY -->
   <section class="section">
     <p class="section-label">Resumen Portfolio</p>
@@ -384,6 +435,12 @@ if (document.readyState === 'loading') {
   <section class="section">
     <p class="section-label">Revenue Mensual Ene–Dic 2026</p>
     <div class="charts-grid" id="charts-container"></div>
+  </section>
+
+  <!-- COMMISSION MONTHLY CHART -->
+  <section class="section">
+    <p class="section-label">Comisión Mensual Ene–Dic 2026</p>
+    <div class="charts-grid" id="commission-chart-container"></div>
   </section>
 
   <!-- ANNUAL TABLE -->
@@ -432,6 +489,7 @@ if (document.readyState === 'loading') {
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
 const ALL_MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 const PROPERTIES = [
   {
@@ -501,6 +559,23 @@ function commissionTarget(p) {
   return p.target_annual * (p.commission_pct / 100);
 }
 
+// Comision agregada del portfolio, mes a mes -- null solo cuando NINGUNA
+// propiedad tiene dato ese mes (meses futuros sin reservas todavia), igual
+// que el criterio ya usado en monthly_confirmed por propiedad.
+function monthlyCommissionConfirmed() {
+  return ALL_MONTHS.map((_, i) => {
+    const anyData = PROPERTIES.some(p => p.monthly_confirmed[i] !== null);
+    if (!anyData) return null;
+    return PROPERTIES.reduce((s, p) => s + (p.monthly_confirmed[i] || 0) * (p.commission_pct / 100), 0);
+  });
+}
+
+function monthlyCommissionTarget() {
+  return ALL_MONTHS.map((_, i) =>
+    PROPERTIES.reduce((s, p) => s + (p.monthly_target[i] || 0) * (p.commission_pct / 100), 0)
+  );
+}
+
 function statusClass(confirmed, target) {
   if (target === 0) return 'slate';
   const r = confirmed / target;
@@ -541,6 +616,40 @@ function buildSummary() {
     stacked(`${pct}%`, '% del Target Confirmado', `${yearPct}% del año transcurrido`, 'Referencia', cls),
     stacked(fmt(gap > 0 ? gap : 0), 'Gap Restante (facturado)', fmt(commissionGap > 0 ? commissionGap : 0), 'Gap Comisión'),
   ].join('');
+}
+
+// ── COMISION DEL MES (destacado) ────────────────────────────────────────────
+function buildCommissionHero() {
+  const container = document.getElementById('commission-hero');
+  const commissionByMonth = monthlyCommissionConfirmed();
+  const targetByMonth = monthlyCommissionTarget();
+  const idx = CURRENT_MONTH_IDX;
+  const thisMonth = commissionByMonth[idx] || 0;
+  const thisTarget = targetByMonth[idx] || 0;
+  const pct = thisTarget > 0 ? Math.round(thisMonth / thisTarget * 100) : null;
+
+  let compareHtml = '';
+  if (idx > 0 && commissionByMonth[idx - 1] !== null) {
+    const prev = commissionByMonth[idx - 1];
+    let diffLine = '';
+    if (prev > 0) {
+      const diff = Math.round((thisMonth - prev) / prev * 100);
+      diffLine = `<div>${diff >= 0 ? '+' : ''}${diff}% vs ${ALL_MONTHS_ES[idx - 1].toLowerCase()}</div>`;
+    }
+    compareHtml = `
+      <div class="hero-commission-compare">
+        ${ALL_MONTHS_ES[idx - 1]}: <strong>${fmt(prev)}</strong>
+        ${diffLine}
+      </div>`;
+  }
+
+  container.innerHTML = `
+    <div>
+      <div class="hero-commission-label">Comisión de ${ALL_MONTHS_ES[idx]} ${NOW.getFullYear()}</div>
+      <div class="hero-commission-value">${fmt(thisMonth)}</div>
+      <div class="hero-commission-sub">${pct !== null ? `${pct}% del objetivo mensual (${fmt(thisTarget)})` : 'Sin objetivo mensual definido'} · incluye todas las reservas ya confirmadas para este mes, aunque el huésped aún no se haya alojado.</div>
+    </div>
+    ${compareHtml}`;
 }
 
 // ── PROPERTY CARDS ───────────────────────────────────────────────────────────
@@ -727,6 +836,119 @@ function buildCharts() {
   }, 0);
 }
 
+// ── COMISION MENSUAL (portfolio completo) ───────────────────────────────────
+function buildCommissionChart() {
+  const container = document.getElementById('commission-chart-container');
+  const commissionByMonth = monthlyCommissionConfirmed();
+  const targetByMonth = monthlyCommissionTarget();
+
+  container.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-title">Portfolio completo</div>
+        <div class="chart-subtitle">Comisión Likha confirmada vs objetivo mensual, 5 propiedades</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="chart-commission-monthly"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:${TARGET_B}"></div>Objetivo</div>
+        <div class="legend-item"><div class="legend-dot" style="background:${GREEN_A}"></div>Cumplido (&ge;90%)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:${AMBER_A}"></div>Cerca (75-90%)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:${RED_A}"></div>Por debajo (&lt;75%)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:${INDIGO_A}"></div>Mes en curso / futuro</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(100,116,139,0.5)"></div>Sin datos</div>
+      </div>
+    </div>`;
+
+  setTimeout(() => {
+    const ctx = document.getElementById('chart-commission-monthly');
+    if (!ctx) return;
+
+    const barData = commissionByMonth.map((v, i) => v !== null ? v : (targetByMonth[i] ? targetByMonth[i] * 0.04 : 0));
+    const barColors = commissionByMonth.map((v, i) => {
+      if (v === null) return ZERO_A;
+      return monthBarColor(v, targetByMonth[i], i);
+    });
+    const barBorders = barColors.map(c =>
+      c === 'transparent' ? 'transparent' : c.replace('0.85', '1').replace('0.75', '1').replace('0.35', '0.6')
+    );
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ALL_MONTHS,
+        datasets: [
+          {
+            label: 'Objetivo',
+            data: targetByMonth,
+            backgroundColor: TARGET_A,
+            borderColor: TARGET_B,
+            borderWidth: 1,
+            borderRadius: 4,
+            order: 2
+          },
+          {
+            label: 'Comisión',
+            data: barData,
+            backgroundColor: barColors,
+            borderColor: barBorders,
+            borderWidth: 1,
+            borderRadius: 4,
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleColor: '#f1f5f9',
+            bodyColor: '#94a3b8',
+            padding: 10,
+            callbacks: {
+              label: (ctx) => {
+                const real = commissionByMonth[ctx.dataIndex];
+                if (ctx.dataset.label === 'Comisión' && real === null) return ' Sin datos';
+                const val = ctx.dataset.label === 'Comisión' ? real : ctx.raw;
+                if (val === 0 && ctx.dataset.label === 'Comisión') return ' Comisión: sin reservas';
+                return ` ${ctx.dataset.label}: €${Math.round(val).toLocaleString('es-ES')}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(51,65,85,0.5)' },
+            ticks: {
+              color: '#94a3b8',
+              font: { size: 11 },
+              autoSkip: true,
+              maxRotation: 0,
+              maxTicksLimit: window.innerWidth < 480 ? 6 : 12
+            }
+          },
+          y: {
+            grid: { color: 'rgba(51,65,85,0.5)' },
+            ticks: {
+              color: '#94a3b8',
+              font: { size: 11 },
+              callback: (v) => v >= 1000 ? '€' + (v/1000).toFixed(0) + 'k' : '€' + v
+            },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }, 0);
+}
+
 // ── ANNUAL TABLE ─────────────────────────────────────────────────────────────
 function buildTable() {
   const tbody = document.getElementById('table-body');
@@ -827,8 +1049,10 @@ function initFullscreenButton() {
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 buildSummary();
+buildCommissionHero();
 buildCards();
 buildCharts();
+buildCommissionChart();
 buildTable();
 initFullscreenButton();
 </script>
