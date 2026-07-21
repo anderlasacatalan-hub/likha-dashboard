@@ -176,6 +176,24 @@
       line-height: 1.6;
     }
     .hero-commission-compare strong { color: var(--text); }
+    .hero-commission-breakdown {
+      flex: 1 0 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .hero-commission-breakdown-item {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .hero-commission-breakdown-item strong {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
     @media (max-width: 640px) {
       .hero-commission { flex-direction: column; align-items: flex-start; }
       .hero-commission-compare { text-align: left; }
@@ -576,6 +594,15 @@ function monthlyCommissionTarget() {
   );
 }
 
+// De mayor a menor, solo propiedades con comision > 0 ese mes (evita listar
+// "House - Stijn: €0" cuando no hubo reservas).
+function commissionByPropertyForMonth(monthIdx) {
+  return PROPERTIES
+    .map(p => ({ name: p.name, amount: (p.monthly_confirmed[monthIdx] || 0) * (p.commission_pct / 100) }))
+    .filter(x => x.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+}
+
 function statusClass(confirmed, target) {
   if (target === 0) return 'slate';
   const r = confirmed / target;
@@ -643,13 +670,20 @@ function buildCommissionHero() {
       </div>`;
   }
 
+  const breakdown = commissionByPropertyForMonth(idx);
+  const breakdownHtml = breakdown.length ? `
+    <div class="hero-commission-breakdown">
+      ${breakdown.map(b => `<div class="hero-commission-breakdown-item">${b.name}: <strong>${fmt(b.amount)}</strong></div>`).join('')}
+    </div>` : '';
+
   container.innerHTML = `
     <div>
       <div class="hero-commission-label">Comisión de ${ALL_MONTHS_ES[idx]} ${NOW.getFullYear()}</div>
       <div class="hero-commission-value">${fmt(thisMonth)}</div>
       <div class="hero-commission-sub">${pct !== null ? `${pct}% del objetivo mensual (${fmt(thisTarget)})` : 'Sin objetivo mensual definido'} · incluye todas las reservas ya confirmadas para este mes, aunque el huésped aún no se haya alojado.</div>
     </div>
-    ${compareHtml}`;
+    ${compareHtml}
+    ${breakdownHtml}`;
 }
 
 // ── PROPERTY CARDS ───────────────────────────────────────────────────────────
