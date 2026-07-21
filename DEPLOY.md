@@ -103,21 +103,30 @@ nada en GitHub. `refresh_data.py` (el script manual) y
 cálculo duplicada a propósito — si cambias el cálculo de `monthly_target` o
 `active_from_month` en uno, replica el cambio en el otro.
 
-## Ajustes manuales de ingresos (2026-07-20)
+## Ajustes manuales de ingresos (2026-07-20, retirado 2026-07-21)
 
 Hostex solo sabe de lo que pasa por la plataforma. Cuando hay un pago real
-que Hostex nunca va a ver (ej. efectivo fuera de plataforma), se añade una
-entrada a `MANUAL_ADJUSTMENTS` en **ambos** archivos (`refresh_data.py` y
-`dashboard_refresh_modal.py`) — suma su `amount_eur` al mes de esa propiedad
-y lo deja anotado en la tarjeta del dashboard, sin tocar nada en Hostex.
+que Hostex nunca va a ver (ej. efectivo fuera de plataforma), la primera
+versión de esto fue un parche de código: una entrada en `MANUAL_ADJUSTMENTS`
+en `refresh_data.py`/`dashboard_refresh_modal.py` que sumaba el importe a
+mano sin tocar Hostex.
 
-**Entrada actual:** Jon Wiggen, julio 2026, +1.780€ — reserva de Alex
+**Caso que lo originó:** Jon Wiggen, julio 2026, +1.780€ — reserva de Alex
 Tsioukaris (Hostex `0-HMTA5SB334-if3431krxv`, check-in 16 jul): Airbnb solo
 registra 323€ por 2 noches, el resto de la estancia se pagó en efectivo
 fuera de la plataforma (confirmado por Ander).
 
-**Reversible:** borra la entrada de `MANUAL_ADJUSTMENTS` en los dos archivos,
-vuelve a correr `refresh_data.py` (o espera al próximo cron) y redeploya
-`dashboard_refresh_modal.py` con `.\modal.ps1 deploy dashboard_refresh_modal.py`.
-Desplegado tras este cambio: `.\modal.ps1 deploy dashboard_refresh_modal.py`
-(2026-07-20) para que el cron diario ya incluya este ajuste.
+**Resuelto de raíz el 2026-07-21:** en vez de mantener el parche, se creó la
+reserva real en Hostex (`5-6BQG8SJ3O`, canal "Booking Site", método "Cash",
+1.780€, 18 jul → 5 ago, remark con el enlace a la reserva Airbnb original) y
+se retiró `MANUAL_ADJUSTMENTS` de ambos archivos — Hostex vuelve a ser la
+única fuente de verdad, `sum_revenue()` ya recoge el importe solo. Cifra
+mensual de Jon Wiggen sin cambios (julio sigue en 2.843€), solo cambió de
+dónde sale el número.
+
+**Nota para el futuro:** si vuelve a pasar algo similar (pago fuera de
+plataforma), preferir crear la reserva manual directamente en Hostex sobre
+reintroducir `MANUAL_ADJUSTMENTS` — evita duplicar lógica y mantiene un solo
+sitio con la verdad. El patrón `MANUAL_ADJUSTMENTS` se deja documentado aquí
+por si algún día hace falta (p.ej. si la API de Hostex no permite crear la
+reserva por algún motivo), no porque siga en uso.
