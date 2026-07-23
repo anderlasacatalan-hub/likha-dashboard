@@ -50,9 +50,14 @@ PROPERTIES = [
      "target_annual": 15000, "commission_pct": 15,
      "h2_targets": [2500, 4000, 1200, 900, 600, 800]},
     {"id": 12690818, "key": "jon", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort",
-     "target_annual": 8000, "commission_pct": 15, "active_from_month": 6,
+     "target_annual": 8200, "commission_pct": 15, "active_from_month": 6,
      "h2_targets": [1200, 3500, 900, 1100, 600, 900]},
 ]
+
+# NOTA (2026-07-21): target_annual 8000 -> 8200, ver comentario completo en
+# refresh_data.py -- aplica la misma regla que el resto del portfolio
+# (target_annual >= suma de h2_targets), resuelve el AVISO que este script
+# mandaba por Telegram cada dia.
 
 YEAR = 2026
 ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

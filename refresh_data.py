@@ -45,15 +45,25 @@ PROPERTIES = [
      "target_annual": 15000, "commission_pct": 15,
      "h2_targets": [2500, 4000, 1200, 900, 600, 800]},
     {"id": 12690818, "key": "jon", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort",
-     "target_annual": 8000, "commission_pct": 15, "active_from_month": 6,
+     "target_annual": 8200, "commission_pct": 15, "active_from_month": 6,
      "h2_targets": [1200, 3500, 900, 1100, 600, 900]},
 ]
 
-# NOTA (2026-07-13): para Jon Wiggen, la suma de h2_targets (8200) ya supera
-# el target_annual (8000) -- son datos de negocio, no un bug de codigo. El
-# calculo de abajo lo deja en evidencia (target H1 sale negativo -> se fuerza
-# a 0) en vez de ocultarlo repartiendo mal el resto del anyo. Pendiente de que
-# Ander confirme el target_annual real de Jon Wiggen.
+# NOTA (2026-07-21): target_annual de Jon Wiggen corregido de 8000 a 8200,
+# aplicando la misma regla que las otras 4 propiedades: target_annual debe
+# ser >= la suma de h2_targets, porque el objetivo de H1 se calcula como el
+# resto (target_annual - h2_targets) repartido entre los meses de H1 ya
+# activos. Para las demas propiedades (activas desde enero) esto sale solo
+# porque tienen medio anyo real que planificar; Jon Wiggen (activo desde
+# junio) no tiene H1 real -- su "H1" es solo junio, con target 0 por diseño
+# (revenue_plan_2026.yaml ya lo fijaba asi: "Pre-launch"/"Launch Jun15, sin
+# check-ins"). Los 8000 anteriores eran una estimacion redonda de la fase de
+# planificacion (26-jun-2026) que nunca se reconcilio con el desglose mensual
+# real (h2_targets suma 8200) -- mismo dia, misma sesion, sin fuente
+# independiente. 8200 = 0 (jun) + 8200 (jul-dic), consistente con el resto
+# del portfolio. Sigue sin haber confirmacion del propietario sobre el
+# objetivo real (ver project_objectives.yaml, objetivos_por_propietario ->
+# jon_wiggen -- "pendiente de confirmar", igual que stijn y noelia).
 
 YEAR = 2026  # Ano de negocio de este dashboard (targets/h2_targets son especificos de 2026).
 TODAY = datetime.date.today()
