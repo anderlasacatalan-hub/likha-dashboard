@@ -1,6 +1,6 @@
 """Refresh the PROPERTIES data array in index.html from live Hostex reservations.
 
-Usage: HOSTEX_ACCESS_TOKEN=... python refresh_data.py
+Usage: HOSTEX_ACCESS_TOKEN=... LIKHA_KB_GITHUB_TOKEN=... python refresh_data.py
 Does NOT include any guest names or other personal data in the output -- only
 aggregated revenue totals, to keep this safe for the public dashboard.
 
@@ -16,47 +16,79 @@ import re
 import sys
 
 import requests
+import yaml
 
 HOSTEX_BASE_URL = "https://api.hostex.io/v3"
 TOKEN = os.environ.get("HOSTEX_ACCESS_TOKEN")
 if not TOKEN:
     sys.exit("Set HOSTEX_ACCESS_TOKEN in the environment first.")
+KB_TOKEN = os.environ.get("LIKHA_KB_GITHUB_TOKEN")
+if not KB_TOKEN:
+    sys.exit("Set LIKHA_KB_GITHUB_TOKEN in the environment first (fine-grained PAT, read-only, Contents, repo likha-hostex-mcp).")
 
 HEADERS = {"Hostex-Access-Token": TOKEN, "Content-Type": "application/json"}
 
-# h2_targets = objetivos reales Jul-Dic del plan de revenue. Para Ene-Jun no
-# hay objetivo mensual documentado, solo un target_annual -> el objetivo H1 se
-# calcula como (target_annual - suma(h2_targets)) / 6, para que los 12 meses
-# sumen exactamente target_annual (antes se hacia target_annual/2/6, que
-# ademas de la mitad anual sumaba los h2_targets reales encima, superando el
-# target anual hasta en un 52%).
-# commission_pct = % de comision de Likha. Formula real (ver
-# likha-hostex-mcp/likha-rm-knowledge/plans/revenue_plan_2026.yaml ->
-# modelo_comision): comision = (platform_net - limpieza_por_estancia) * pct.
-# cleaning_fee_eur / cleaning_fee_pet_eur = limpieza a descontar por estancia
-# antes de aplicar el %(0 = sin deduccion, como Alhama/Cantabria/Jon Wiggen).
-# TODO (2026-07-27): estos dos campos duplican a mano lo que ya vive en
-# modelo_comision -- pendiente moverlos a una fuente unica fetcheable (ver
-# tarea "fuente unica de datos del portfolio" en pending_tasks.yaml), bloqueado
-# hoy porque likha-hostex-mcp es un repo privado y este script no tiene token
-# con acceso de lectura ahi.
-PROPERTIES = [
-    {"id": 12492685, "key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas",
-     "target_annual": 18000, "commission_pct": 20, "cleaning_fee_eur": 80, "cleaning_fee_pet_eur": 100,
-     "h2_targets": [2520, 2990, 1210, 1150, 850, 1660]},
-    {"id": 12507366, "key": "carlos", "name": "Villa Carlos", "location": "Torrevieja",
-     "target_annual": 26000, "commission_pct": 15, "cleaning_fee_eur": 70,
-     "h2_targets": [3500, 4000, 1800, 2100, 1550, 1700]},
-    {"id": 12287282, "key": "alhama", "name": "Apt Noelia – Alhama", "location": "Alhama de Murcia",
-     "target_annual": 14000, "commission_pct": 15, "cleaning_fee_eur": 0,
-     "h2_targets": [2700, 2400, 1500, 1200, 1050, 700]},
-    {"id": 12506184, "key": "cantabria", "name": "Apt Cantabria – Noelia", "location": "San Vicente de la Barquera",
-     "target_annual": 15000, "commission_pct": 15, "cleaning_fee_eur": 0,
-     "h2_targets": [2500, 4000, 1200, 900, 600, 800]},
-    {"id": 12690818, "key": "jon", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort",
-     "target_annual": 8200, "commission_pct": 20, "cleaning_fee_eur": 0, "active_from_month": 6,
-     "h2_targets": [1200, 3500, 900, 1100, 600, 900]},
+# Solo identidad/metadatos de cada propiedad -- comision, limpieza y targets
+# YA NO se hardcodean aqui (2026-07-27): se leen en vivo de likha-hostex-mcp
+# (ver fetch_kb_property_data) para que no haya dos copias que desincronizar.
+# "key" (dashboard) <-> nombre de propiedad en revenue_plan_2026.yaml.
+PROPERTIES_META = [
+    {"id": 12492685, "key": "stijn", "kb_key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas"},
+    {"id": 12507366, "key": "carlos", "kb_key": "carlos", "name": "Villa Carlos", "location": "Torrevieja"},
+    {"id": 12287282, "key": "alhama", "kb_key": "noelia_alhama", "name": "Apt Noelia – Alhama", "location": "Alhama de Murcia"},
+    {"id": 12506184, "key": "cantabria", "kb_key": "noelia_cantabria", "name": "Apt Cantabria – Noelia", "location": "San Vicente de la Barquera"},
+    {"id": 12690818, "key": "jon", "kb_key": "jon_wiggen", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort", "active_from_month": 6},
 ]
+
+KB_REPO = "anderlasacatalan-hub/likha-hostex-mcp"
+H2_MONTHS = ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]
+
+
+def fetch_kb_property_data(github_token):
+    # Comision, limpieza y targets viven en likha-hostex-mcp (repo privado) --
+    # se leen aqui en vivo en vez de copiarlos a mano, para que un cambio ahi
+    # (ej. Ander confirma una comision nueva) se refleje solo, sin tener que
+    # acordarse de tocar tambien este script. Ver likha_cleaning_fee_eur en
+    # likha-owner-constraints.json y modelo_comision en revenue_plan_2026.yaml.
+    headers = {"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.raw+json"}
+
+    def fetch_file(path):
+        resp = requests.get(
+            f"https://api.github.com/repos/{KB_REPO}/contents/{path}",
+            headers=headers,
+            timeout=20,
+        )
+        resp.raise_for_status()
+        return resp.text
+
+    constraints = json.loads(fetch_file("likha-owner-constraints.json"))
+    revenue_plan = yaml.safe_load(fetch_file("likha-rm-knowledge/plans/revenue_plan_2026.yaml"))
+
+    by_id = {}
+    for prop in constraints["properties"]:
+        c = prop["constraints"]
+        by_id[prop["hostex_property_id"]] = {
+            "commission_pct": c["likha_management_commission_percent"],
+            "cleaning_fee_eur": c.get("likha_cleaning_fee_eur", 0),
+            "cleaning_fee_pet_eur": c.get("likha_cleaning_fee_pet_eur", c.get("likha_cleaning_fee_eur", 0)),
+        }
+
+    for meta in PROPERTIES_META:
+        kb_key = meta["kb_key"]
+        # target_annual viene de desglose_mensual (no de targets_anuales_2026.realista_eur):
+        # detectado 2026-07-27 que para Alhama esos dos campos estaban desincronizados
+        # (17000 vs 14000, tras una revision a la baja que solo se aplico en un sitio) --
+        # desglose_mensual.total_anual_target es el que de verdad usan los targets
+        # mensuales reales (h2_targets), asi que es la fuente correcta aqui.
+        by_id[meta["id"]]["target_annual"] = revenue_plan["desglose_mensual"][kb_key]["total_anual_target"]
+        target_eur_mes = revenue_plan["desglose_mensual"][kb_key]["target_eur_mes"]
+        by_id[meta["id"]]["h2_targets"] = [target_eur_mes[m]["target"] for m in H2_MONTHS]
+
+    return by_id
+
+
+kb_data = fetch_kb_property_data(KB_TOKEN)
+PROPERTIES = [{**meta, **kb_data[meta["id"]]} for meta in PROPERTIES_META]
 
 # NOTA (2026-07-21): target_annual de Jon Wiggen corregido de 8000 a 8200,
 # aplicando la misma regla que las otras 4 propiedades: target_annual debe
@@ -66,13 +98,8 @@ PROPERTIES = [
 # porque tienen medio anyo real que planificar; Jon Wiggen (activo desde
 # junio) no tiene H1 real -- su "H1" es solo junio, con target 0 por diseño
 # (revenue_plan_2026.yaml ya lo fijaba asi: "Pre-launch"/"Launch Jun15, sin
-# check-ins"). Los 8000 anteriores eran una estimacion redonda de la fase de
-# planificacion (26-jun-2026) que nunca se reconcilio con el desglose mensual
-# real (h2_targets suma 8200) -- mismo dia, misma sesion, sin fuente
-# independiente. 8200 = 0 (jun) + 8200 (jul-dic), consistente con el resto
-# del portfolio. Sigue sin haber confirmacion del propietario sobre el
-# objetivo real (ver project_objectives.yaml, objetivos_por_propietario ->
-# jon_wiggen -- "pendiente de confirmar", igual que stijn y noelia).
+# check-ins"). Este numero ahora viene directo de revenue_plan_2026.yaml, ya
+# no se puede desincronizar entre los dos archivos como paso esa vez.
 
 YEAR = 2026  # Ano de negocio de este dashboard (targets/h2_targets son especificos de 2026).
 TODAY = datetime.date.today()
@@ -83,7 +110,7 @@ if TODAY.year != YEAR:
     # peor que un aviso claro de que hace falta revisión humana.
     print(
         f"AVISO: hoy ({TODAY.isoformat()}) ya no es del ano {YEAR} configurado en este script. "
-        "Actualiza YEAR, target_annual y h2_targets de cada propiedad para el nuevo ano antes "
+        "Actualiza YEAR en este script y el ano del plan de revenue en likha-hostex-mcp antes "
         "de seguir usando este refresco automatico.",
         file=sys.stderr,
     )

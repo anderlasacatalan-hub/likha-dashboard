@@ -9,7 +9,11 @@ Setup (one-time):
 1. modal secret create likha-github GITHUB_TOKEN=<fine-grained PAT, repo
    likha-dashboard, permission "Contents: Read and write">
    (create the token at https://github.com/settings/tokens)
-2. modal deploy dashboard_refresh_modal.py
+2. modal secret create likha-kb-read LIKHA_KB_GITHUB_TOKEN=<fine-grained PAT,
+   repo likha-hostex-mcp, permission "Contents: Read-only"> -- lee comision,
+   limpieza y targets en vivo del KB en vez de tenerlos hardcodeados aqui
+   (ver PROPERTIES_META / fetch_kb_property_data).
+3. modal deploy dashboard_refresh_modal.py
    (reuses the existing "likha-secrets" secret for HOSTEX_ACCESS_TOKEN, and
    for TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID to report failures)
 
@@ -27,43 +31,68 @@ import sys
 import modal
 
 app = modal.App("likha-dashboard-refresh")
-image = modal.Image.debian_slim().pip_install("requests")
+image = modal.Image.debian_slim().pip_install("requests", "pyyaml")
 
 GITHUB_REPO = "anderlasacatalan-hub/likha-dashboard"
 GITHUB_BRANCH = "main"
 GITHUB_FILE_PATH = "index.html"
 HOSTEX_BASE_URL = "https://api.hostex.io/v3"
+KB_REPO = "anderlasacatalan-hub/likha-hostex-mcp"
+H2_MONTHS = ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]
 
-# Mismo PROPERTIES que refresh_data.py -- ver ese archivo para el comentario
-# completo sobre el calculo de monthly_target y active_from_month, y sobre
-# cleaning_fee_eur / cleaning_fee_pet_eur (formula real de comision, ver
-# modelo_comision en likha-hostex-mcp/likha-rm-knowledge/plans/revenue_plan_2026.yaml).
-PROPERTIES = [
-    {"id": 12492685, "key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas",
-     "target_annual": 18000, "commission_pct": 20, "cleaning_fee_eur": 80, "cleaning_fee_pet_eur": 100,
-     "h2_targets": [2520, 2990, 1210, 1150, 850, 1660]},
-    {"id": 12507366, "key": "carlos", "name": "Villa Carlos", "location": "Torrevieja",
-     "target_annual": 26000, "commission_pct": 15, "cleaning_fee_eur": 70,
-     "h2_targets": [3500, 4000, 1800, 2100, 1550, 1700]},
-    {"id": 12287282, "key": "alhama", "name": "Apt Noelia – Alhama", "location": "Alhama de Murcia",
-     "target_annual": 14000, "commission_pct": 15, "cleaning_fee_eur": 0,
-     "h2_targets": [2700, 2400, 1500, 1200, 1050, 700]},
-    {"id": 12506184, "key": "cantabria", "name": "Apt Cantabria – Noelia", "location": "San Vicente de la Barquera",
-     "target_annual": 15000, "commission_pct": 15, "cleaning_fee_eur": 0,
-     "h2_targets": [2500, 4000, 1200, 900, 600, 800]},
-    {"id": 12690818, "key": "jon", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort",
-     "target_annual": 8200, "commission_pct": 20, "cleaning_fee_eur": 0, "active_from_month": 6,
-     "h2_targets": [1200, 3500, 900, 1100, 600, 900]},
+# Solo identidad/metadatos de cada propiedad -- comision, limpieza y targets
+# YA NO se hardcodean aqui (2026-07-27): se leen en vivo de likha-hostex-mcp
+# (ver fetch_kb_property_data), mismo criterio que refresh_data.py.
+PROPERTIES_META = [
+    {"id": 12492685, "key": "stijn", "kb_key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas"},
+    {"id": 12507366, "key": "carlos", "kb_key": "carlos", "name": "Villa Carlos", "location": "Torrevieja"},
+    {"id": 12287282, "key": "alhama", "kb_key": "noelia_alhama", "name": "Apt Noelia – Alhama", "location": "Alhama de Murcia"},
+    {"id": 12506184, "key": "cantabria", "kb_key": "noelia_cantabria", "name": "Apt Cantabria – Noelia", "location": "San Vicente de la Barquera"},
+    {"id": 12690818, "key": "jon", "kb_key": "jon_wiggen", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort", "active_from_month": 6},
 ]
-
-# NOTA (2026-07-21): target_annual 8000 -> 8200, ver comentario completo en
-# refresh_data.py -- aplica la misma regla que el resto del portfolio
-# (target_annual >= suma de h2_targets), resuelve el AVISO que este script
-# mandaba por Telegram cada dia.
 
 YEAR = 2026
 ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+
+def _fetch_kb_property_data(kb_github_token):
+    import requests
+    import yaml
+
+    headers = {"Authorization": f"Bearer {kb_github_token}", "Accept": "application/vnd.github.raw+json"}
+
+    def fetch_file(path):
+        resp = requests.get(
+            f"https://api.github.com/repos/{KB_REPO}/contents/{path}",
+            headers=headers,
+            timeout=20,
+        )
+        resp.raise_for_status()
+        return resp.text
+
+    constraints = json.loads(fetch_file("likha-owner-constraints.json"))
+    revenue_plan = yaml.safe_load(fetch_file("likha-rm-knowledge/plans/revenue_plan_2026.yaml"))
+
+    by_id = {}
+    for prop in constraints["properties"]:
+        c = prop["constraints"]
+        by_id[prop["hostex_property_id"]] = {
+            "commission_pct": c["likha_management_commission_percent"],
+            "cleaning_fee_eur": c.get("likha_cleaning_fee_eur", 0),
+            "cleaning_fee_pet_eur": c.get("likha_cleaning_fee_pet_eur", c.get("likha_cleaning_fee_eur", 0)),
+        }
+
+    for meta in PROPERTIES_META:
+        kb_key = meta["kb_key"]
+        # target_annual viene de desglose_mensual (no de targets_anuales_2026.realista_eur) --
+        # ver comentario completo en refresh_data.py::fetch_kb_property_data.
+        by_id[meta["id"]]["target_annual"] = revenue_plan["desglose_mensual"][kb_key]["total_anual_target"]
+        target_eur_mes = revenue_plan["desglose_mensual"][kb_key]["target_eur_mes"]
+        by_id[meta["id"]]["h2_targets"] = [target_eur_mes[m]["target"] for m in H2_MONTHS]
+
+    return by_id
+
 
 def _month_detail(property_id, start, end, hostex_token):
     import requests
@@ -118,10 +147,13 @@ def _month_range(year, month):
     return f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day:02d}"
 
 
-def _regenerate_html(html, hostex_token, today):
+def _regenerate_html(html, hostex_token, kb_github_token, today):
     warnings = []
     results = []
-    for p in PROPERTIES:
+    kb_data = _fetch_kb_property_data(kb_github_token)
+    properties = [{**meta, **kb_data[meta["id"]]} for meta in PROPERTIES_META]
+
+    for p in properties:
         active_from = p.get("active_from_month", 1)
         cleaning_fee = p.get("cleaning_fee_eur", 0)
         cleaning_fee_pet = p.get("cleaning_fee_pet_eur", cleaning_fee)
@@ -220,7 +252,11 @@ def _notify_telegram(text):
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("likha-secrets"), modal.Secret.from_name("likha-github")],
+    secrets=[
+        modal.Secret.from_name("likha-secrets"),
+        modal.Secret.from_name("likha-github"),
+        modal.Secret.from_name("likha-kb-read"),
+    ],
     schedule=modal.Period(hours=24),
 )
 def refresh_dashboard():
@@ -228,6 +264,7 @@ def refresh_dashboard():
 
     github_token = os.environ["GITHUB_TOKEN"]
     hostex_token = os.environ["HOSTEX_ACCESS_TOKEN"]
+    kb_github_token = os.environ["LIKHA_KB_GITHUB_TOKEN"]
     gh_headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github+json",
@@ -246,7 +283,7 @@ def refresh_dashboard():
         sha = file_data["sha"]
 
         today = datetime.date.today()
-        new_html, warnings = _regenerate_html(html, hostex_token, today)
+        new_html, warnings = _regenerate_html(html, hostex_token, kb_github_token, today)
 
         if new_html == html:
             print("Sin cambios, no se hace commit.")
