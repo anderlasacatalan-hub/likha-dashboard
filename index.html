@@ -419,7 +419,7 @@ if (document.readyState === 'loading') {
       </div>
     </div>
     <div class="header-actions">
-      <div class="update-badge">Actualizado: 23 julio 2026</div>
+      <div class="update-badge">Actualizado: 27 julio 2026</div>
       <button type="button" class="fullscreen-btn" id="fullscreen-btn" title="Pantalla completa">⛶</button>
     </div>
   </div>
@@ -500,7 +500,7 @@ if (document.readyState === 'loading') {
 </main>
 
 <footer>
-  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-23</footer>
+  Likha Homes Revenue System · Datos actualizados automaticamente desde Hostex el 2026-07-27</footer>
 
 </div><!-- /#app-content -->
 
@@ -517,7 +517,8 @@ const PROPERTIES = [
     target_annual: 18000,
     commission_pct: 20,
     monthly_target: [1270, 1270, 1270, 1270, 1270, 1270, 2520, 2990, 1210, 1150, 850, 1660],
-    monthly_confirmed: [1224, 389, 931, 1230, 1129, 2400, 3470, 2521, null, null, null, null],
+    monthly_confirmed: [1224, 389, 931, 1230, 1129, 2400, 3470, 2900, null, null, null, null],
+    monthly_commissionable: [742, 216, 577, 579, 577, 1610, 2659, 2117, null, null, null, null],
     note: ""
   },
   {
@@ -528,6 +529,7 @@ const PROPERTIES = [
     commission_pct: 15,
     monthly_target: [1892, 1892, 1892, 1892, 1892, 1892, 3500, 4000, 1800, 2100, 1550, 1700],
     monthly_confirmed: [984, 1816, 2468, 2134, 2182, 1451, 3260, 4319, 803, null, null, null],
+    monthly_commissionable: [589, 1056, 1655, 1454, 1423, 969, 2229, 3229, 582, null, null, null],
     note: ""
   },
   {
@@ -537,7 +539,8 @@ const PROPERTIES = [
     target_annual: 14000,
     commission_pct: 15,
     monthly_target: [742, 742, 742, 742, 742, 742, 2700, 2400, 1500, 1200, 1050, 700],
-    monthly_confirmed: [1286, 756, 1250, 1984, 769, 1412, 2414, 4129, 1387, 277, null, null],
+    monthly_confirmed: [1286, 756, 1250, 1984, 769, 1412, 2414, 3642, 1387, 277, null, null],
+    monthly_commissionable: [1048, 615, 1053, 1616, 628, 1147, 1962, 2964, 1130, 225, null, null],
     note: ""
   },
   {
@@ -548,6 +551,7 @@ const PROPERTIES = [
     commission_pct: 15,
     monthly_target: [833, 833, 833, 833, 833, 833, 2500, 4000, 1200, 900, 600, 800],
     monthly_confirmed: [264, 661, 1097, 1148, 965, 1057, 3140, 5296, 1409, 2125, null, null],
+    monthly_commissionable: [214, 537, 891, 933, 784, 859, 2551, 4303, 1145, 1727, null, null],
     note: ""
   },
   {
@@ -558,6 +562,7 @@ const PROPERTIES = [
     commission_pct: 20,
     monthly_target: [null, null, null, null, null, 0, 1200, 3500, 900, 1100, 600, 900],
     monthly_confirmed: [null, null, null, null, null, 554, 2843, 2923, null, null, null, null],
+    monthly_commissionable: [null, null, null, null, null, 450, 2644, 2375, null, null, null, null],
     note: "Propiedad activa desde Junio 2026 -- meses anteriores sin datos (no cuentan como objetivo perdido)."
   }
 ];
@@ -569,8 +574,17 @@ function totalConfirmed(p) {
   return p.monthly_confirmed.reduce((s, v) => s + (v || 0), 0);
 }
 
+// monthly_commissionable = neto de plataforma (lo que cobra el propietario
+// tras la comision de Airbnb/Booking) menos la limpieza por estancia -- ya
+// calculado en Python (refresh_data.py / dashboard_refresh_modal.py) segun
+// la formula real de modelo_comision. NO son lo mismo que monthly_confirmed
+// (ingreso bruto facturado, el que se muestra como "Revenue Confirmado").
+function totalCommissionable(p) {
+  return p.monthly_commissionable.reduce((s, v) => s + (v || 0), 0);
+}
+
 function commissionConfirmed(p) {
-  return totalConfirmed(p) * (p.commission_pct / 100);
+  return totalCommissionable(p) * (p.commission_pct / 100);
 }
 
 function commissionTarget(p) {
@@ -584,7 +598,7 @@ function monthlyCommissionConfirmed() {
   return ALL_MONTHS.map((_, i) => {
     const anyData = PROPERTIES.some(p => p.monthly_confirmed[i] !== null);
     if (!anyData) return null;
-    return PROPERTIES.reduce((s, p) => s + (p.monthly_confirmed[i] || 0) * (p.commission_pct / 100), 0);
+    return PROPERTIES.reduce((s, p) => s + (p.monthly_commissionable[i] || 0) * (p.commission_pct / 100), 0);
   });
 }
 
@@ -598,7 +612,7 @@ function monthlyCommissionTarget() {
 // "House - Stijn: €0" cuando no hubo reservas).
 function commissionByPropertyForMonth(monthIdx) {
   return PROPERTIES
-    .map(p => ({ name: p.name, amount: (p.monthly_confirmed[monthIdx] || 0) * (p.commission_pct / 100) }))
+    .map(p => ({ name: p.name, amount: (p.monthly_commissionable[monthIdx] || 0) * (p.commission_pct / 100) }))
     .filter(x => x.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 }

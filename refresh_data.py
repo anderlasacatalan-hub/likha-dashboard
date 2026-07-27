@@ -30,22 +30,31 @@ HEADERS = {"Hostex-Access-Token": TOKEN, "Content-Type": "application/json"}
 # sumen exactamente target_annual (antes se hacia target_annual/2/6, que
 # ademas de la mitad anual sumaba los h2_targets reales encima, superando el
 # target anual hasta en un 52%).
-# commission_pct = % de comision de Likha sobre el neto de la plataforma.
+# commission_pct = % de comision de Likha. Formula real (ver
+# likha-hostex-mcp/likha-rm-knowledge/plans/revenue_plan_2026.yaml ->
+# modelo_comision): comision = (platform_net - limpieza_por_estancia) * pct.
+# cleaning_fee_eur / cleaning_fee_pet_eur = limpieza a descontar por estancia
+# antes de aplicar el %(0 = sin deduccion, como Alhama/Cantabria/Jon Wiggen).
+# TODO (2026-07-27): estos dos campos duplican a mano lo que ya vive en
+# modelo_comision -- pendiente moverlos a una fuente unica fetcheable (ver
+# tarea "fuente unica de datos del portfolio" en pending_tasks.yaml), bloqueado
+# hoy porque likha-hostex-mcp es un repo privado y este script no tiene token
+# con acceso de lectura ahi.
 PROPERTIES = [
     {"id": 12492685, "key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas",
-     "target_annual": 18000, "commission_pct": 20,
+     "target_annual": 18000, "commission_pct": 20, "cleaning_fee_eur": 80, "cleaning_fee_pet_eur": 100,
      "h2_targets": [2520, 2990, 1210, 1150, 850, 1660]},
     {"id": 12507366, "key": "carlos", "name": "Villa Carlos", "location": "Torrevieja",
-     "target_annual": 26000, "commission_pct": 15,
+     "target_annual": 26000, "commission_pct": 15, "cleaning_fee_eur": 70,
      "h2_targets": [3500, 4000, 1800, 2100, 1550, 1700]},
     {"id": 12287282, "key": "alhama", "name": "Apt Noelia – Alhama", "location": "Alhama de Murcia",
-     "target_annual": 14000, "commission_pct": 15,
+     "target_annual": 14000, "commission_pct": 15, "cleaning_fee_eur": 0,
      "h2_targets": [2700, 2400, 1500, 1200, 1050, 700]},
     {"id": 12506184, "key": "cantabria", "name": "Apt Cantabria – Noelia", "location": "San Vicente de la Barquera",
-     "target_annual": 15000, "commission_pct": 15,
+     "target_annual": 15000, "commission_pct": 15, "cleaning_fee_eur": 0,
      "h2_targets": [2500, 4000, 1200, 900, 600, 800]},
     {"id": 12690818, "key": "jon", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort",
-     "target_annual": 8200, "commission_pct": 20, "active_from_month": 6,
+     "target_annual": 8200, "commission_pct": 20, "cleaning_fee_eur": 0, "active_from_month": 6,
      "h2_targets": [1200, 3500, 900, 1100, 600, 900]},
 ]
 
@@ -82,12 +91,22 @@ ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
-def sum_revenue(property_id, start, end):
+def month_detail(property_id, start, end):
     # Deja que un fallo real de la API (red, 401, 5xx) reviente aqui en vez
     # de devolver 0 silenciosamente -- antes un error de Hostex se veia
     # identico a "sin reservas ese mes", que es exactamente el dato que este
     # dashboard existe para reportar bien.
-    total = 0
+    #
+    # platform_net = payment.total_amount (lo que realmente cobra el
+    # propietario tras la comision de la plataforma). Verificado 2026-07-27
+    # contra 21 reservas reales (Airbnb y Booking.com, Stijn y Carlos):
+    # total_rate - total_commission == payment.total_amount en el 100% de
+    # los casos -- es el dato fiable que faltaba para calcular la comision
+    # de Likha segun la formula real (modelo_comision), no total_rate bruto.
+    gross = 0
+    platform_net = 0
+    stays = 0
+    pet_stays = 0
     reservations = []
     offset = 0
     while True:
@@ -112,8 +131,18 @@ def sum_revenue(property_id, start, end):
             break
         offset += 100
     for r in reservations:
-        total += (r.get("rates") or {}).get("total_rate", {}).get("amount", 0) or 0
-    return round(total)
+        gross += (r.get("rates") or {}).get("total_rate", {}).get("amount", 0) or 0
+        platform_net += (r.get("payment") or {}).get("total_amount", 0) or 0
+        stays += 1
+        details = (r.get("rates") or {}).get("details") or []
+        if any(d.get("type") == "PET_FEE" for d in details):
+            pet_stays += 1
+    return {
+        "gross": round(gross),
+        "platform_net": round(platform_net),
+        "stays": stays,
+        "pet_stays": pet_stays,
+    }
 
 
 def month_range(year, month):
@@ -124,18 +153,28 @@ def month_range(year, month):
 results = []
 for p in PROPERTIES:
     active_from = p.get("active_from_month", 1)
+    cleaning_fee = p.get("cleaning_fee_eur", 0)
+    cleaning_fee_pet = p.get("cleaning_fee_pet_eur", cleaning_fee)
     monthly_confirmed = []
+    monthly_commissionable = []
     for month in range(1, 13):
         start, end = month_range(YEAR, month)
         if month < active_from:
             # La propiedad todavia no existia -> sin datos, no "cero ingresos".
             monthly_confirmed.append(None)
+            monthly_commissionable.append(None)
             continue
         # Meses futuros sin ninguna reserva -> None (sin datos), no 0, para
         # no pintarlos como "cero ingresos" en el grafico.
         is_future_month = datetime.date(YEAR, month, 1) > TODAY
-        amount = sum_revenue(p["id"], start, end)
+        detail = month_detail(p["id"], start, end)
+        amount = detail["gross"]
         monthly_confirmed.append(None if (amount == 0 and is_future_month) else amount)
+
+        non_pet_stays = detail["stays"] - detail["pet_stays"]
+        cleaning_deduction = non_pet_stays * cleaning_fee + detail["pet_stays"] * cleaning_fee_pet
+        commissionable = max(0, detail["platform_net"] - cleaning_deduction)
+        monthly_commissionable.append(None if (amount == 0 and is_future_month) else round(commissionable))
 
     # Objetivo H1 = lo que falta del target anual tras restar los h2_targets
     # reales, repartido entre los meses de H1 en los que la propiedad ya
@@ -157,7 +196,12 @@ for p in PROPERTIES:
         + p["h2_targets"]
     )
 
-    results.append({**p, "monthly_confirmed": monthly_confirmed, "monthly_target": monthly_target})
+    results.append({
+        **p,
+        "monthly_confirmed": monthly_confirmed,
+        "monthly_commissionable": monthly_commissionable,
+        "monthly_target": monthly_target,
+    })
     print(f"{p['name']}: {monthly_confirmed}", file=sys.stderr)
 
 # ── Regenerate the PROPERTIES block in index.html ───────────────────────────
@@ -185,6 +229,7 @@ for r in results:
         f"    commission_pct: {r['commission_pct']},\n"
         f"    monthly_target: {json.dumps(r['monthly_target'])},\n"
         f"    monthly_confirmed: {json.dumps(r['monthly_confirmed'])},\n"
+        f"    monthly_commissionable: {json.dumps(r['monthly_commissionable'])},\n"
         f"    note: {json.dumps(note, ensure_ascii=False)}\n"
         "  }"
     )

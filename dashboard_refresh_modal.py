@@ -35,22 +35,24 @@ GITHUB_FILE_PATH = "index.html"
 HOSTEX_BASE_URL = "https://api.hostex.io/v3"
 
 # Mismo PROPERTIES que refresh_data.py -- ver ese archivo para el comentario
-# completo sobre el calculo de monthly_target y active_from_month.
+# completo sobre el calculo de monthly_target y active_from_month, y sobre
+# cleaning_fee_eur / cleaning_fee_pet_eur (formula real de comision, ver
+# modelo_comision en likha-hostex-mcp/likha-rm-knowledge/plans/revenue_plan_2026.yaml).
 PROPERTIES = [
     {"id": 12492685, "key": "stijn", "name": "House – Stijn", "location": "San Miguel de Salinas",
-     "target_annual": 18000, "commission_pct": 20,
+     "target_annual": 18000, "commission_pct": 20, "cleaning_fee_eur": 80, "cleaning_fee_pet_eur": 100,
      "h2_targets": [2520, 2990, 1210, 1150, 850, 1660]},
     {"id": 12507366, "key": "carlos", "name": "Villa Carlos", "location": "Torrevieja",
-     "target_annual": 26000, "commission_pct": 15,
+     "target_annual": 26000, "commission_pct": 15, "cleaning_fee_eur": 70,
      "h2_targets": [3500, 4000, 1800, 2100, 1550, 1700]},
     {"id": 12287282, "key": "alhama", "name": "Apt Noelia – Alhama", "location": "Alhama de Murcia",
-     "target_annual": 14000, "commission_pct": 15,
+     "target_annual": 14000, "commission_pct": 15, "cleaning_fee_eur": 0,
      "h2_targets": [2700, 2400, 1500, 1200, 1050, 700]},
     {"id": 12506184, "key": "cantabria", "name": "Apt Cantabria – Noelia", "location": "San Vicente de la Barquera",
-     "target_annual": 15000, "commission_pct": 15,
+     "target_annual": 15000, "commission_pct": 15, "cleaning_fee_eur": 0,
      "h2_targets": [2500, 4000, 1200, 900, 600, 800]},
     {"id": 12690818, "key": "jon", "name": "Apt Jon Wiggen", "location": "Mar Menor Golf Resort",
-     "target_annual": 8200, "commission_pct": 20, "active_from_month": 6,
+     "target_annual": 8200, "commission_pct": 20, "cleaning_fee_eur": 0, "active_from_month": 6,
      "h2_targets": [1200, 3500, 900, 1100, 600, 900]},
 ]
 
@@ -63,11 +65,17 @@ YEAR = 2026
 ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-def _sum_revenue(property_id, start, end, hostex_token):
+def _month_detail(property_id, start, end, hostex_token):
     import requests
 
+    # platform_net = payment.total_amount -- ver comentario completo en
+    # refresh_data.py::month_detail sobre por que este campo (no total_rate)
+    # es la base correcta para la comision de Likha.
     headers = {"Hostex-Access-Token": hostex_token, "Content-Type": "application/json"}
-    total = 0
+    gross = 0
+    platform_net = 0
+    stays = 0
+    pet_stays = 0
     reservations = []
     offset = 0
     while True:
@@ -91,8 +99,18 @@ def _sum_revenue(property_id, start, end, hostex_token):
             break
         offset += 100
     for r in reservations:
-        total += (r.get("rates") or {}).get("total_rate", {}).get("amount", 0) or 0
-    return round(total)
+        gross += (r.get("rates") or {}).get("total_rate", {}).get("amount", 0) or 0
+        platform_net += (r.get("payment") or {}).get("total_amount", 0) or 0
+        stays += 1
+        details = (r.get("rates") or {}).get("details") or []
+        if any(d.get("type") == "PET_FEE" for d in details):
+            pet_stays += 1
+    return {
+        "gross": round(gross),
+        "platform_net": round(platform_net),
+        "stays": stays,
+        "pet_stays": pet_stays,
+    }
 
 
 def _month_range(year, month):
@@ -105,15 +123,25 @@ def _regenerate_html(html, hostex_token, today):
     results = []
     for p in PROPERTIES:
         active_from = p.get("active_from_month", 1)
+        cleaning_fee = p.get("cleaning_fee_eur", 0)
+        cleaning_fee_pet = p.get("cleaning_fee_pet_eur", cleaning_fee)
         monthly_confirmed = []
+        monthly_commissionable = []
         for month in range(1, 13):
             start, end = _month_range(YEAR, month)
             if month < active_from:
                 monthly_confirmed.append(None)
+                monthly_commissionable.append(None)
                 continue
             is_future_month = datetime.date(YEAR, month, 1) > today
-            amount = _sum_revenue(p["id"], start, end, hostex_token)
+            detail = _month_detail(p["id"], start, end, hostex_token)
+            amount = detail["gross"]
             monthly_confirmed.append(None if (amount == 0 and is_future_month) else amount)
+
+            non_pet_stays = detail["stays"] - detail["pet_stays"]
+            cleaning_deduction = non_pet_stays * cleaning_fee + detail["pet_stays"] * cleaning_fee_pet
+            commissionable = max(0, detail["platform_net"] - cleaning_deduction)
+            monthly_commissionable.append(None if (amount == 0 and is_future_month) else round(commissionable))
 
         h1_months_active = max(0, 6 - (active_from - 1))
         h1_total = p["target_annual"] - sum(p["h2_targets"])
@@ -129,7 +157,12 @@ def _regenerate_html(html, hostex_token, today):
             + [h1_target_monthly] * h1_months_active
             + p["h2_targets"]
         )
-        results.append({**p, "monthly_confirmed": monthly_confirmed, "monthly_target": monthly_target})
+        results.append({
+            **p,
+            "monthly_confirmed": monthly_confirmed,
+            "monthly_commissionable": monthly_commissionable,
+            "monthly_target": monthly_target,
+        })
 
     entries = []
     for r in results:
@@ -152,6 +185,7 @@ def _regenerate_html(html, hostex_token, today):
             f"    commission_pct: {r['commission_pct']},\n"
             f"    monthly_target: {json.dumps(r['monthly_target'])},\n"
             f"    monthly_confirmed: {json.dumps(r['monthly_confirmed'])},\n"
+            f"    monthly_commissionable: {json.dumps(r['monthly_commissionable'])},\n"
             f"    note: {json.dumps(note, ensure_ascii=False)}\n"
             "  }"
         )
