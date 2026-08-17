@@ -52,6 +52,37 @@ PROPERTIES_META = [
 ]
 
 YEAR = 2026
+
+
+def _request_with_retry(fn, attempts=3, base_delay=2):
+    """Reintenta fn() (una llamada que ya hace requests.get/put(...) +
+    .raise_for_status()) ante fallos TRANSITORIOS -- 5xx, timeout, error de
+    conexion -- con backoff 2s/4s/8s. NUNCA reintenta un 4xx (error real del
+    cliente, un reintento no lo arregla).
+
+    Bug real 2026-08-17: un 503 puntual de GitHub (incidente Critical
+    confirmado en githubstatus.com, 13:40-16:59 UTC) tumbo el refresh diario
+    entero sin ningun reintento -- dejaba el dashboard desactualizado 24h
+    completas por un blip de minutos. No paso nada grave esa vez porque el
+    proximo cron (24h despues) ya caia con GitHub recuperado, pero el riesgo
+    era real, no teorico."""
+    import time
+    import requests
+
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response is not None else None
+            if status is not None and status < 500:
+                raise
+            last_exc = e
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_exc = e
+        if attempt < attempts - 1:
+            time.sleep(base_delay * (2 ** attempt))
+    raise last_exc
 ALL_MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
@@ -63,13 +94,15 @@ def _fetch_kb_property_data(kb_github_token):
     headers = {"Authorization": f"Bearer {kb_github_token}", "Accept": "application/vnd.github.raw+json"}
 
     def fetch_file(path):
-        resp = requests.get(
-            f"https://api.github.com/repos/{KB_REPO}/contents/{path}",
-            headers=headers,
-            timeout=20,
-        )
-        resp.raise_for_status()
-        return resp.text
+        def _do():
+            resp = requests.get(
+                f"https://api.github.com/repos/{KB_REPO}/contents/{path}",
+                headers=headers,
+                timeout=20,
+            )
+            resp.raise_for_status()
+            return resp
+        return _request_with_retry(_do).text
 
     constraints = json.loads(fetch_file("likha-owner-constraints.json"))
     revenue_plan = yaml.safe_load(fetch_file("likha-rm-knowledge/plans/revenue_plan_2026.yaml"))
@@ -108,20 +141,23 @@ def _month_detail(property_id, start, end, hostex_token):
     reservations = []
     offset = 0
     while True:
-        resp = requests.get(
-            f"{HOSTEX_BASE_URL}/reservations",
-            headers=headers,
-            params={
-                "property_id": property_id,
-                "start_check_in_date": start,
-                "end_check_in_date": end,
-                "status": "accepted",
-                "limit": 100,
-                "offset": offset,
-            },
-            timeout=20,
-        )
-        resp.raise_for_status()
+        def _do(offset=offset):
+            resp = requests.get(
+                f"{HOSTEX_BASE_URL}/reservations",
+                headers=headers,
+                params={
+                    "property_id": property_id,
+                    "start_check_in_date": start,
+                    "end_check_in_date": end,
+                    "status": "accepted",
+                    "limit": 100,
+                    "offset": offset,
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+            return resp
+        resp = _request_with_retry(_do)
         batch = (resp.json().get("data") or {}).get("reservations") or []
         reservations.extend(batch)
         if len(batch) < 100:
@@ -271,13 +307,16 @@ def refresh_dashboard():
     }
 
     try:
-        get_resp = requests.get(
-            f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}",
-            headers=gh_headers,
-            params={"ref": GITHUB_BRANCH},
-            timeout=20,
-        )
-        get_resp.raise_for_status()
+        def _get_current():
+            resp = requests.get(
+                f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}",
+                headers=gh_headers,
+                params={"ref": GITHUB_BRANCH},
+                timeout=20,
+            )
+            resp.raise_for_status()
+            return resp
+        get_resp = _request_with_retry(_get_current)
         file_data = get_resp.json()
         html = base64.b64decode(file_data["content"]).decode("utf-8")
         sha = file_data["sha"]
@@ -289,18 +328,21 @@ def refresh_dashboard():
             print("Sin cambios, no se hace commit.")
             return {"ok": True, "changed": False, "warnings": warnings}
 
-        put_resp = requests.put(
-            f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}",
-            headers=gh_headers,
-            json={
-                "message": f"chore: auto-refresh dashboard data {today.isoformat()}",
-                "content": base64.b64encode(new_html.encode("utf-8")).decode("ascii"),
-                "sha": sha,
-                "branch": GITHUB_BRANCH,
-            },
-            timeout=20,
-        )
-        put_resp.raise_for_status()
+        def _put_updated():
+            resp = requests.put(
+                f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}",
+                headers=gh_headers,
+                json={
+                    "message": f"chore: auto-refresh dashboard data {today.isoformat()}",
+                    "content": base64.b64encode(new_html.encode("utf-8")).decode("ascii"),
+                    "sha": sha,
+                    "branch": GITHUB_BRANCH,
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+            return resp
+        _request_with_retry(_put_updated)
 
         if warnings:
             _notify_telegram(
